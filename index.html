@@ -1602,7 +1602,7 @@ Guia.abrir = function () { Guia.paso = 0; App.modo = 'guia'; App.render(); };
 Guia.salir = function () { App.modo = 'proyecto'; App.tab = 'datos'; App.render(); };
 Guia.siguiente = function () { if (Guia.paso < Guia.PASOS.length-1) { Guia.paso++; App.render(); } else Guia.finalizar(); };
 Guia.atras = function () { if (Guia.paso > 0) { Guia.paso--; App.render(); } };
-Guia.finalizar = function () { App.modo = 'proyecto'; App.tab = 'datos'; App.render(); };
+Guia.finalizar = function () { App.modo = 'proyecto'; App.tab = 'escenarios'; if (window.UI) UI.escenarioSel = 'base'; App.render(); };
 
 Guia.render = function (project) {
   const cont = document.getElementById('panel-tab'); cont.innerHTML = '';
