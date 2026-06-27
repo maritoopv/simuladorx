@@ -176,6 +176,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15
 .lista-vacia { padding:40px 16px; text-align:center; border:1px dashed var(--border); border-radius:var(--radius); }
 .lista-vacia__txt { font-size:16px; margin-bottom:6px; }
 .lista-vacia__sub { font-size:14px; }
+.comp-selector { display:flex; flex-wrap:wrap; gap:8px 16px; margin:12px 0; }
+.comp-selector__item { display:flex; align-items:center; gap:6px; font-size:14px; cursor:pointer; }
 
 </style>
 </head>
@@ -1572,7 +1574,23 @@ UI.renderSensibilidad = function (project, cont) {
 
 UI.renderComparador = function () {
   const cont = document.getElementById('panel-tab'); cont.innerHTML = '';
-  const filas = App.state.proyectos.map(p => {
+  if (!Array.isArray(UI.comparadorSeleccion)) UI.comparadorSeleccion = App.state.proyectos.map(p=>p.id);
+  const sel = UI.comparadorSeleccion;
+
+  // Selector: qué proyectos entran en la comparación
+  const selector = UI.el('div',{class:'comp-selector'}, App.state.proyectos.map(p => {
+    const incluido = sel.includes(p.id);
+    const chk = UI.el('input',{type:'checkbox', ...(incluido?{checked:'checked'}:{}), onchange:(e)=>{
+      const s = UI.comparadorSeleccion.slice();
+      if (e.target.checked) { if (!s.includes(p.id)) s.push(p.id); }
+      else { const i = s.indexOf(p.id); if (i>=0) s.splice(i,1); }
+      UI.comparadorSeleccion = s; App.render();
+    }});
+    return UI.el('label',{class:'comp-selector__item'},[chk, UI.el('span',null,p.nombre || 'Sin nombre')]);
+  }));
+
+  const incluidos = App.state.proyectos.filter(p => sel.includes(p.id));
+  const filas = incluidos.map(p => {
     const a = Engine.analyze(p);
     return { nombre:p.nombre, beneficio:a.realista.beneficioNeto, margen:a.realista.margenNetoPct,
       payback: a.inversion && isFinite(a.inversion.paybackAnios) ? a.inversion.paybackAnios : Infinity,
@@ -1585,21 +1603,25 @@ UI.renderComparador = function () {
   };
   const mejorBenef = mejor('beneficio',true), mejorPayback = mejor('payback',false), mejorColchon = mejor('colchon',false);
   const th = t => UI.el('th',null,t);
-  const tabla = UI.el('table',{class:'tabla-comp'},[
-    UI.el('thead',null,UI.el('tr',null,[th('Proyecto'),th('Beneficio/año'),th('Margen neto'),th('Payback'),th('Colchón'),th('Veredicto')])),
-    UI.el('tbody',null,filas.map((f,i)=>UI.el('tr',null,[
-      UI.el('td',null,f.nombre),
-      UI.el('td',{class:i===mejorBenef?'mejor':''},UI.eur(f.beneficio)),
-      UI.el('td',null,UI.pct(f.margen)),
-      UI.el('td',{class:i===mejorPayback&&isFinite(f.payback)?'mejor':''}, isFinite(f.payback)?f.payback.toFixed(1)+' años':'—'),
-      UI.el('td',{class:i===mejorColchon?'mejor':''},UI.eur(f.colchon)),
-      UI.el('td',null,UI.el('span',{class:'punto punto--'+f.veredicto}))
-    ])))
-  ]);
+  const cuerpo = (filas.length < 2)
+    ? UI.el('div',{class:'muted',style:'margin-top:12px'},'Elige al menos 2 proyectos para comparar.')
+    : UI.el('table',{class:'tabla-comp'},[
+        UI.el('thead',null,UI.el('tr',null,[th('Proyecto'),th('Beneficio/año'),th('Margen neto'),th('Payback'),th('Colchón'),th('Veredicto')])),
+        UI.el('tbody',null,filas.map((f,i)=>UI.el('tr',null,[
+          UI.el('td',null,f.nombre),
+          UI.el('td',{class:i===mejorBenef?'mejor':''},UI.eur(f.beneficio)),
+          UI.el('td',null,UI.pct(f.margen)),
+          UI.el('td',{class:i===mejorPayback&&isFinite(f.payback)?'mejor':''}, isFinite(f.payback)?f.payback.toFixed(1)+' años':'—'),
+          UI.el('td',{class:i===mejorColchon?'mejor':''},UI.eur(f.colchon)),
+          UI.el('td',null,UI.el('span',{class:'punto punto--'+f.veredicto}))
+        ])))
+      ]);
+
   cont.appendChild(UI.el('div',{class:'card'},[
     UI.el('h2',null,'Comparador de proyectos'),
     UI.el('button',{class:'btn',onclick:App.verLista},'← Volver'),
-    tabla
+    selector,
+    cuerpo
   ]));
 };
 
@@ -1828,7 +1850,7 @@ App.tab  = 'datos';                 // datos | escenarios | riesgos
 App.verLista     = function(){ App.modo='lista'; App.render(); };
 App.abrirProyecto = function(id){ if (id) App.state.activoId = id; App.modo='proyecto'; App.tab='datos'; if (window.UI) UI.escenarioSel='base'; Storage.guardar(App.state); App.render(); };
 App.irATab       = function(tab){ App.tab = tab; App.render(); };
-App.verComparador = function(){ App.modo='comparador'; App.render(); };
+App.verComparador = function(){ App.modo='comparador'; if (window.UI) UI.comparadorSeleccion = App.state.proyectos.map(p=>p.id); App.render(); };
 App.verProyecto   = function(){ App.modo='proyecto'; App.render(); };
 
 // Nombre legible del sector para el subtítulo del detalle
