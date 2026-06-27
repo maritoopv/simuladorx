@@ -1,0 +1,1887 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SimuladorX — ¿Es rentable mi negocio?</title>
+  <style>
+:root{
+  --bg:#0b0c0e; --surface:#14151a; --surface2:#1a1c22; --border:#262932;
+  --text:#e8e9ec; --muted:#868a93; --faint:#565a63;
+  --accent:#4a90d9; --red:#e5564b; --green:#46c373; --amber:#d9a441;
+  --radius:12px; --gap:16px;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box} html,body{margin:0;height:100%}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15px;line-height:1.45}
+#app{min-height:100vh}
+
+/* ---- Vistas (lista / detalle) ---- */
+.vista{max-width:1180px;margin:0 auto;padding:24px}
+.vista[hidden]{display:none}
+
+/* ---- Vista lista ---- */
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px}
+.topbar h1{font-size:20px;margin:0;letter-spacing:.01em}
+.lista-proyectos{display:flex;flex-direction:column;gap:8px;margin-bottom:24px}
+.proyecto-item{padding:14px 16px;border-radius:var(--radius);cursor:pointer;border:1px solid var(--border);
+  background:var(--surface);display:flex;justify-content:space-between;align-items:center;gap:10px}
+.proyecto-item:hover{background:var(--surface2);border-color:var(--faint)}
+.proyecto-item.activo{border-color:var(--accent)}
+.proyecto-item__info{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.proyecto-item__nombre{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.proyecto-item__benef{font-size:13px;color:var(--muted)}
+.proyecto-item__benef.neg{color:var(--red)}
+.lista-acciones{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ---- Vista detalle ---- */
+.detalle-head{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.detalle-titulo{flex:1;min-width:0}
+.detalle-nombre{font-size:20px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.detalle-sub{font-size:13px;margin-top:2px}
+
+/* ---- Barra de pestañas ---- */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:20px}
+.tab{font-family:inherit;font-size:15px;padding:10px 16px;border:0;background:none;color:var(--muted);
+  cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab:hover{color:var(--text)}
+.tab.activa{color:var(--text);border-bottom-color:var(--accent)}
+.tabs[hidden]{display:none}
+.panel-tab{padding-bottom:40px}
+
+/* ---- Botones ---- */
+.btn{font-family:inherit;font-size:14px;padding:8px 14px;border-radius:10px;border:1px solid var(--border);
+  background:var(--surface);color:var(--text);cursor:pointer}
+.btn:hover{background:var(--surface2);border-color:var(--faint)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:disabled:hover{background:var(--surface);border-color:var(--border)}
+.btn--accent{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn--accent:hover{background:#3f7fc4;border-color:#3f7fc4}
+.btn--icono{padding:8px 12px;font-size:18px;line-height:1}
+
+/* ---- Tarjetas y campos ---- */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:var(--gap)}
+.card h2{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 14px}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field label{font-size:13px;color:var(--muted)}
+.field input,.field select,.field textarea{font-family:inherit;font-size:15px;padding:9px 11px;
+  border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text)}
+.field input:focus,.field select:focus{outline:none;border-color:var(--accent)}
+.field input::placeholder{color:var(--faint)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.muted{color:var(--muted)}
+
+/* ---- Veredicto / KPIs ---- */
+.semaforo{display:flex;align-items:center;gap:12px;padding:18px;border-radius:var(--radius);
+  border:1px solid var(--border);background:var(--surface2)}
+.semaforo--verde{border-left:4px solid var(--green)}
+.semaforo--ambar{border-left:4px solid var(--amber)}
+.semaforo--rojo{border-left:4px solid var(--red)}
+.kpi{font-size:26px;font-weight:600} .kpi--neg{color:var(--red)}
+
+/* ---- Calendario ---- */
+.cal-fila{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.cal-mes{font-size:12px;padding:8px 4px;border-radius:8px;border:1px solid var(--border);
+  cursor:pointer;background:var(--surface2);color:var(--text)}
+.cal-B{border-color:var(--accent)} .cal-N{border-color:var(--border)} .cal-M{border-color:var(--red)}
+
+/* ---- Barras / progreso ---- */
+.barra-eq{height:14px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;overflow:hidden;margin:8px 0}
+.barra-eq__fill{height:100%;background:var(--accent)}
+
+/* ---- Recomendaciones / checklist ---- */
+.tip{cursor:help;color:var(--accent)}
+.reco{padding:10px;border-radius:10px;margin-bottom:6px;border:1px solid var(--border);background:var(--surface2)}
+.reco--alto{border-left:3px solid var(--red)}
+.reco--medio{border-left:3px solid var(--accent)}
+.reco--info{border-left:3px solid var(--faint)}
+.check-item{display:flex;gap:8px;align-items:center;margin-bottom:8px;color:var(--text)}
+.microayuda{font-size:12px;color:var(--muted);margin-top:2px}
+.estimador{margin-top:8px;padding:12px;border:1px dashed var(--border);border-radius:10px;display:flex;flex-direction:column;gap:6px}
+
+/* ---- Comparador ---- */
+.tabla-comp{width:100%;border-collapse:collapse;margin-top:12px}
+.tabla-comp th,.tabla-comp td{padding:8px;border-bottom:1px solid var(--border);text-align:left;font-size:14px}
+.tabla-comp th{color:var(--muted);font-weight:600}
+.tabla-comp .mejor{color:var(--accent);font-weight:600}
+.punto{display:inline-block;width:12px;height:12px;border-radius:50%}
+.punto--verde{background:var(--green)} .punto--ambar{background:var(--amber)} .punto--rojo{background:var(--red)} .punto--neutro{background:var(--faint)}
+
+/* ---- Plan de acción ---- */
+.card--plan{border-left:3px solid var(--accent)}
+.accion{padding:10px;border-radius:10px;margin-bottom:6px;background:var(--surface2);border:1px solid var(--border);
+  display:flex;justify-content:space-between;gap:12px;align-items:center}
+.accion--alta{border-left:3px solid var(--accent)}
+.accion--media{border-left:3px solid var(--faint)}
+.accion__impacto{font-weight:600;color:var(--accent);white-space:nowrap}
+
+/* ---- Selector de escenario (segmented) ---- */
+.segmented{display:inline-flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px}
+.seg{font-family:inherit;font-size:14px;padding:8px 18px;border:0;background:var(--surface);color:var(--muted);
+  cursor:pointer;border-right:1px solid var(--border)}
+.seg:last-child{border-right:0}
+.seg:hover{color:var(--text)}
+.seg--activa{background:var(--accent);color:#fff}
+
+/* ---- Rejilla de métricas ---- */
+.metricas{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.metrica{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px}
+.metrica__lab{font-size:12px;color:var(--muted);margin-bottom:4px}
+.metrica__val{font-size:18px;font-weight:600}
+.metrica__val.neg{color:var(--red)}
+
+/* ---- Barras por temporada ---- */
+.barra-temp{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.barra-temp__lab{width:72px;font-size:13px;color:var(--muted)}
+.barra-temp__track{flex:1;height:22px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.barra-temp__fill{height:100%;background:var(--accent)}
+.barra-temp__fill.neg{background:var(--red)}
+.barra-temp__val{width:120px;text-align:right;font-size:13px}
+.barra-temp__val.neg{color:var(--red)}
+
+/* ---- Más detalle ---- */
+.mas-detalle{margin-top:4px}
+.mas-detalle>summary{cursor:pointer;color:var(--muted);font-size:14px;padding:8px 0;list-style:revert}
+.mas-detalle[open]>summary{color:var(--text);margin-bottom:8px}
+
+@media (max-width:1100px){.metricas{grid-template-columns:repeat(2,1fr)}}
+
+/* ---- Riesgos (validación) ---- */
+.riesgos-cab{display:flex;align-items:center;gap:18px}
+.riesgos-cab__txt{display:flex;flex-direction:column;gap:4px}
+.estado{align-self:flex-start;font-size:13px;padding:3px 12px;border-radius:20px;border:1px solid var(--border);color:var(--muted)}
+.estado--listo{color:var(--green);border-color:var(--green)}
+.riesgo-item{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;cursor:pointer}
+.riesgo-item.hecho span{text-decoration:line-through;color:var(--faint)}
+
+/* ---- Guía ---- */
+.guia__prog{font-size:13px;color:var(--muted);margin-bottom:8px}
+.guia__nav{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.guia h2{font-size:18px;text-transform:none;letter-spacing:0;color:var(--text)}
+
+@media (max-width:1100px){.grid-2,.grid-3{grid-template-columns:1fr}}
+@media print{
+  .topbar,.lista-acciones,.detalle-head,.tabs{display:none!important}
+  .vista{max-width:none;padding:0}
+  .card{break-inside:avoid;border:1px solid var(--border)}
+  .btn{display:none!important}
+}
+
+.topbar__acciones { display:flex; gap:8px; align-items:center; }
+.orden-lista { display:flex; align-items:center; gap:6px; padding:8px 0 4px; }
+.orden-lista__etq { font-size:13px; }
+.btn--seg { padding:4px 10px; font-size:13px; }
+.btn--seg.activa { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+</style>
+</head>
+<body>
+  <div id="app">
+    <!-- Vista raíz: lista de proyectos -->
+    <section id="vista-lista" class="vista">
+      <header class="topbar">
+        <h1>SimuladorX</h1>
+        <div class="topbar__acciones">
+          <button id="btn-comparar" class="btn">Comparar</button>
+          <button id="btn-nuevo" class="btn btn--accent">+ Nuevo proyecto</button>
+        </div>
+      </header>
+      <div id="orden-lista" class="orden-lista"></div>
+      <nav id="lista-proyectos" class="lista-proyectos"></nav>
+      <footer class="lista-acciones">
+        <button id="btn-exportar" class="btn">Exportar</button>
+        <button id="btn-importar" class="btn">Importar</button>
+        <input id="file-importar" type="file" accept="application/json" hidden>
+      </footer>
+    </section>
+
+    <!-- Vista detalle: un proyecto, con pestañas -->
+    <section id="vista-detalle" class="vista" hidden>
+      <header class="detalle-head">
+        <button id="btn-volver" class="btn btn--icono" title="Volver a la lista">‹</button>
+        <div class="detalle-titulo">
+          <div id="detalle-nombre" class="detalle-nombre"></div>
+          <div id="detalle-sub" class="detalle-sub muted"></div>
+        </div>
+        <button id="btn-borrar-detalle" class="btn btn--icono" title="Borrar proyecto">🗑</button>
+      </header>
+      <nav class="tabs" id="tabs">
+        <button class="tab" data-tab="datos">Datos</button>
+        <button class="tab" data-tab="escenarios">Escenarios</button>
+        <button class="tab" data-tab="riesgos">Riesgos</button>
+      </nav>
+      <main id="panel-tab" class="panel-tab"></main>
+    </section>
+  </div>
+  <script>
+'use strict';
+
+const Engine = {};
+
+Engine.MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+Engine.proyectoVacio = function () {
+  return {
+    nombre: 'Nuevo proyecto',
+    sector: 'generico',
+    facturacion: { mesBueno: 0, nBuenos: 0, mesNormal: 0, nNormales: 12, mesMalo: 0, nMalos: 0 },
+    margen: { modo: 'global', costeMercanciaPct: 0, productos: [] },
+    mermaPct: 0,
+    costesFijos: [],
+    inversionInicial: 0,
+    impuestoPct: 0,
+    ivaPct: 21,
+    propietario: { sueldoMes: 0, horasSemana: 0 },
+    operativa: { ticketMedio: 0, diasAbiertosSemana: 6, unidadCliente: 'clientes', horasAbiertasDia: 0, personasSimultaneas: 1 },
+    empleados: [],
+    ssPct: 31,
+    calendario: Array(12).fill('N'),
+    escenarios: { optimistaPct: 15, pesimistaPct: 20 },
+    prosContras: { pros: '', contras: '' },
+    costesOlvidadosMarcados: [],
+    riesgosMarcados: []
+  };
+};
+
+Engine.costeMercanciaPct = function (margen) {
+  if (!margen) return 0;
+  if (margen.modo === 'productos' && Array.isArray(margen.productos) && margen.productos.length) {
+    let num = 0, den = 0;
+    for (const p of margen.productos) {
+      if (!p.precio) continue;
+      num += (p.coste / p.precio) * 100 * (Number(p.pesoPct) || 0);
+      den += (Number(p.pesoPct) || 0);
+    }
+    return den > 0 ? num / den : 0;
+  }
+  return Number(margen.costeMercanciaPct) || 0;
+};
+
+Engine.costeEmpleado = function (emp, ssPct) {
+  const numero = Number(emp && emp.numero) || 0;
+  const sueldo = Number(emp && emp.sueldoBrutoMes) || 0;
+  const ss = Number(ssPct) || 0;
+  const brutoAnual = numero * sueldo * 14;
+  const ssImporte = brutoAnual * ss / 100;
+  const costeAnual = brutoAnual * (1 + ss/100);
+  return { brutoAnual, ss: ssImporte, costeAnual, costeMes: costeAnual/12 };
+};
+
+Engine.costePersonalMensual = function (project) {
+  const ssPct = Number(project.ssPct) || 0;
+  return (project.empleados || []).reduce((s, e) => s + Engine.costeEmpleado(e, ssPct).costeMes, 0);
+};
+
+Engine.costePersonalAnual = function (project) {
+  return Engine.costePersonalMensual(project) * 12;
+};
+
+Engine.coberturaEmpleados = function (opts) {
+  const o = opts || {};
+  const horasDia = Number(o.horasAbiertasDia) || 0;
+  const dias = Number(o.diasSemana) || 0;
+  const personas = Number(o.personasSimultaneas) || 0;
+  const jornada = Number(o.jornadaHoras) || 40;
+  const horasSemana = horasDia * dias * personas;
+  const empleadosNecesarios = (jornada > 0 && horasSemana > 0) ? Math.ceil(horasSemana / jornada) : 0;
+  return { horasSemana, empleadosNecesarios };
+};
+
+Engine.sueldoBajoSMI = function (emp, smiMensual, jornadaHoras) {
+  const horas = Number(emp && emp.horasSemana) || 0;
+  const jornada = Number(jornadaHoras) || 40;
+  if (horas <= 0) return false;
+  const smiProporcional = (Number(smiMensual)||0) * horas / jornada;
+  return (Number(emp && emp.sueldoBrutoMes)||0) < smiProporcional - 1e-9;
+};
+
+Engine.facturacionAnualBase = function (f) {
+  if (!f) return 0;
+  return (f.mesBueno||0)*(f.nBuenos||0) + (f.mesNormal||0)*(f.nNormales||0) + (f.mesMalo||0)*(f.nMalos||0);
+};
+
+Engine.costesFijosMensuales = function (project) {
+  const lista = (project.costesFijos || []).reduce((s,c)=> s + (Number(c.importe)||0), 0);
+  const sueldo = project.propietario ? (Number(project.propietario.sueldoMes)||0) : 0;
+  return lista + sueldo + Engine.costePersonalMensual(project);
+};
+
+Engine.computeScenario = function (project, m) {
+  const facturacion = Engine.facturacionAnualBase(project.facturacion) * m;
+  const cmPct = Engine.costeMercanciaPct(project.margen);
+  const mermaPct = Number(project.mermaPct) || 0;
+  const costeMercancia = facturacion * cmPct/100;
+  const merma = facturacion * mermaPct/100;
+  const margenContribucionPct = 100 - cmPct - mermaPct;
+  const margenBruto = facturacion - costeMercancia - merma;
+  const margenBrutoPct = facturacion ? margenBruto/facturacion*100 : 0;
+  const costesFijosAnuales = Engine.costesFijosMensuales(project) * 12;
+  const beneficioAntesImp = margenBruto - costesFijosAnuales;
+  const impuestos = Math.max(0, beneficioAntesImp) * (Number(project.impuestoPct)||0)/100;
+  const beneficioNeto = beneficioAntesImp - impuestos;
+  const margenNetoPct = facturacion ? beneficioNeto/facturacion*100 : 0;
+  return { multiplicador:m, facturacion, costeMercanciaPct:cmPct, costeMercancia, mermaPct, merma,
+    margenContribucionPct, margenBruto, margenBrutoPct, costesFijosAnuales,
+    costePersonalAnual: Engine.costePersonalAnual(project),
+    beneficioAntesImp, impuestos, beneficioNeto, margenNetoPct, beneficioMensual: beneficioNeto/12 };
+};
+
+Engine.breakeven = function (project) {
+  const cmPct = Engine.costeMercanciaPct(project.margen);
+  const mermaPct = Number(project.mermaPct) || 0;
+  const margenContribucionPct = 100 - cmPct - mermaPct;
+  const costesFijosAnuales = Engine.costesFijosMensuales(project) * 12;
+  const breakevenAnual = margenContribucionPct > 0
+    ? costesFijosAnuales / (margenContribucionPct/100) : Infinity;
+  const realista = Engine.facturacionAnualBase(project.facturacion);
+  const margenSeguridadPct = (realista > 0 && isFinite(breakevenAnual))
+    ? (realista - breakevenAnual) / realista * 100 : -Infinity;
+  const op = project.operativa || {};
+  const diasAbiertosAnio = (Number(op.diasAbiertosSemana)||0) * 52;
+  const clientesDiaEquilibrio = (op.ticketMedio > 0 && diasAbiertosAnio > 0 && isFinite(breakevenAnual))
+    ? breakevenAnual / op.ticketMedio / diasAbiertosAnio : null;
+  return { margenContribucionPct, breakevenAnual, margenSeguridadPct, clientesDiaEquilibrio };
+};
+
+Engine.inversion = function (project, beneficioNetoRealista) {
+  const inv = Number(project.inversionInicial) || 0;
+  if (inv <= 0) return null;
+  const paybackAnios = beneficioNetoRealista > 0 ? inv / beneficioNetoRealista : Infinity;
+  const roiPct = beneficioNetoRealista / inv * 100;
+  return { inversionInicial: inv, paybackAnios, roiPct };
+};
+
+Engine.euroHoraReal = function (project, beneficioNetoRealista) {
+  const p = project.propietario || {};
+  const horasAnio = (Number(p.horasSemana)||0) * 48; // 48 semanas trabajadas
+  if (horasAnio <= 0) return { horasAnio: 0, euroHoraReal: null };
+  const total = (Number(p.sueldoMes)||0) * 12 + beneficioNetoRealista;
+  return { horasAnio, euroHoraReal: total / horasAnio };
+};
+
+Engine.cashflow = function (project, m) {
+  const f = project.facturacion || {};
+  const valorMes = { B: (f.mesBueno||0), N: (f.mesNormal||0), M: (f.mesMalo||0) };
+  const cmPct = Engine.costeMercanciaPct(project.margen);
+  const mermaPct = Number(project.mermaPct) || 0;
+  const margenContribucionPct = 100 - cmPct - mermaPct;
+  const sc = Engine.computeScenario(project, m);
+  const costesFijosMes = sc.costesFijosAnuales / 12;
+  const impuestosMes = sc.impuestos / 12;
+  const cal = (project.calendario && project.calendario.length === 12) ? project.calendario : Array(12).fill('N');
+  const cajaMes = cal.map(t => (valorMes[t]||0) * m * margenContribucionPct/100 - costesFijosMes - impuestosMes);
+  const acumulada = [];
+  let run = -(Number(project.inversionInicial)||0);
+  let minPoint = run, minMonth = -1;
+  cajaMes.forEach((c, i) => { run += c; acumulada.push(run); if (run < minPoint) { minPoint = run; minMonth = i; } });
+  return { cajaMes, acumulada, colchonNecesario: Math.max(0, -minPoint), puntoMasBajoMes: minMonth };
+};
+
+Engine.ivaTrimestralAprox = function (scenario, ivaPct) {
+  return (scenario.facturacion - scenario.costeMercancia) * (Number(ivaPct)||0)/100 / 4;
+};
+
+Engine.verdict = function (a) {
+  const real = a.realista, be = a.breakeven, pes = a.pesimista;
+  if (real.beneficioNeto <= 0 || !isFinite(be.breakevenAnual) || be.margenSeguridadPct < 0) {
+    return { color:'rojo', titulo:'No rentable / muy arriesgado',
+      motivo:'En el escenario realista no ganas dinero o tu punto de equilibrio queda por encima de lo que esperas facturar.' };
+  }
+  if (pes.beneficioNeto < 0 || be.margenSeguridadPct < 15) {
+    return { color:'ambar', titulo:'Rentable pero ajustado',
+      motivo:'Ganas en lo realista, pero en un mal año entras en pérdidas o tu colchón de seguridad es pequeño.' };
+  }
+  return { color:'verde', titulo:'Rentable y con margen',
+    motivo:'Ganas en lo realista y aguantas un mal año sin entrar en pérdidas.' };
+};
+
+Engine.recomendaciones = function (project, a) {
+  const out = [];
+  const be = a.breakeven, real = a.realista, pes = a.pesimista;
+  const eur = n => Math.round(n).toLocaleString('es-ES');
+
+  if (isFinite(be.breakevenAnual) && a.base > 0) {
+    const pct = be.breakevenAnual / a.base * 100;
+    if (pct > 85) out.push({ nivel:'alto',
+      texto:`Tu punto de equilibrio está al ${pct.toFixed(0)}% de tu facturación realista: cualquier mes flojo te mete en pérdidas.` });
+  }
+  if (pes.beneficioNeto < 0) out.push({ nivel:'alto',
+    texto:`En el escenario pesimista pierdes ${eur(-pes.beneficioNeto)} €/año. Necesitas un colchón de tesorería para aguantarlo.` });
+  if (a.cashflow.colchonNecesario > 0) out.push({ nivel:'medio',
+    texto:`Necesitas tener guardados ~${eur(a.cashflow.colchonNecesario)} € para no quedarte sin caja en los meses malos.` });
+  const tieneSueldo = project.propietario && Number(project.propietario.sueldoMes) > 0;
+  if (!tieneSueldo) out.push({ nivel:'alto',
+    texto:'No has incluido tu propio sueldo: el beneficio real es menor de lo que parece.' });
+  if (a.propietario.euroHoraReal !== null && a.propietario.euroHoraReal < 8) out.push({ nivel:'medio',
+    texto:`Tu tiempo te renta ${a.propietario.euroHoraReal.toFixed(2)} €/hora. Plantéate si compensa tantas horas.` });
+  if (a.inversion && isFinite(a.inversion.paybackAnios) && a.inversion.paybackAnios > 5) out.push({ nivel:'medio',
+    texto:`Tardarías ${a.inversion.paybackAnios.toFixed(1)} años en recuperar la inversión: es un retorno lento.` });
+  if (real.beneficioNeto > 0 && pes.beneficioNeto >= 0) out.push({ nivel:'info',
+    texto:'Aguantas un año malo sin pérdidas: buena señal de solidez.' });
+  return out;
+};
+
+Engine.analyze = function (project) {
+  const esc = project.escenarios || { optimistaPct:15, pesimistaPct:20 };
+  const optimista = Engine.computeScenario(project, 1 + (Number(esc.optimistaPct)||0)/100);
+  const realista  = Engine.computeScenario(project, 1);
+  const pesimista = Engine.computeScenario(project, 1 - (Number(esc.pesimistaPct)||0)/100);
+  const a = {
+    base: Engine.facturacionAnualBase(project.facturacion),
+    optimista, realista, pesimista,
+    breakeven: Engine.breakeven(project),
+    inversion: Engine.inversion(project, realista.beneficioNeto),
+    propietario: Engine.euroHoraReal(project, realista.beneficioNeto),
+    cashflow: Engine.cashflow(project, 1),
+    iva: { trimestralAprox: Engine.ivaTrimestralAprox(realista, project.ivaPct) },
+    recomendaciones: []
+  };
+  a.verdict = Engine.verdict(a);
+  a.recomendaciones = Engine.recomendaciones ? Engine.recomendaciones(project, a) : [];
+  return a;
+};
+
+Engine.objetivos = function (project, a, benchmarks) {
+  const b = benchmarks || { costeMercanciaPct:[20,40], mermaPct:[0,5], alquilerSobreVentasPct:[5,12], paybackAnios:[2,5], personalSobreVentasPct:[0,35] };
+  const out = [];
+  const eur = n => Math.round(n).toLocaleString('es-ES');
+  const real = a.realista;
+  const facturacion = real.facturacion;
+
+  // Facturación mínima (cubrir el equilibrio)
+  if (isFinite(a.breakeven.breakevenAnual) && a.base > 0 && a.base < a.breakeven.breakevenAnual) {
+    const faltanMes = (a.breakeven.breakevenAnual - a.base) / 12;
+    out.push({ clave:'facturacion_minima', prioridad:'alta', impactoAnual:null,
+      texto:`Para no perder necesitas facturar ${eur(a.breakeven.breakevenAnual/12)} €/mes; hoy estimas ${eur(a.base/12)} → te faltan ${eur(faltanMes)} €/mes.` });
+  }
+
+  // Coste de mercancía por encima del rango del sector
+  const cmPct = real.costeMercanciaPct;
+  const topeCM = b.costeMercanciaPct[1];
+  if (cmPct > topeCM && facturacion > 0) {
+    const ahorro = (cmPct - topeCM)/100 * facturacion;
+    out.push({ clave:'coste_mercancia', prioridad:'alta', impactoAnual: ahorro,
+      texto:`Tu coste de mercancía (${cmPct.toFixed(0)}%) está por encima de lo normal del sector (${b.costeMercanciaPct[0]}-${topeCM}%). Bajándolo al ${topeCM}% ganarías +${eur(ahorro)} €/año.` });
+  }
+
+  // Alquiler por encima del recomendado
+  const alquiler = (project.costesFijos || []).find(c => /alquiler/i.test(c.concepto || ''));
+  if (alquiler && facturacion > 0) {
+    const maxMes = b.alquilerSobreVentasPct[1]/100 * facturacion/12;
+    if ((Number(alquiler.importe)||0) > maxMes) {
+      const exceso = ((Number(alquiler.importe)||0) - maxMes) * 12;
+      out.push({ clave:'alquiler', prioridad:'media', impactoAnual: exceso,
+        texto:`Tu alquiler (${eur(alquiler.importe)} €/mes) es alto para tus ventas. Para este nivel no debería pasar de ${eur(maxMes)} €/mes.` });
+    }
+  }
+
+  // Sueldo del propietario ausente
+  const tieneSueldo = project.propietario && Number(project.propietario.sueldoMes) > 0;
+  if (!tieneSueldo) {
+    out.push({ clave:'sueldo_propietario', prioridad:'alta', impactoAnual:null,
+      texto:'Incluye tu propio sueldo: el beneficio real es menor de lo que parece hasta que te pagas a ti.' });
+  }
+
+  // Personal por encima del % de ventas del sector
+  const personalAnual = Engine.costePersonalAnual(project);
+  const topePersonal = (b.personalSobreVentasPct && b.personalSobreVentasPct[1] != null) ? b.personalSobreVentasPct[1] : 35;
+  if (facturacion > 0 && personalAnual > 0) {
+    const pctPersonal = personalAnual / facturacion * 100;
+    if (pctPersonal > topePersonal) {
+      out.push({ clave:'personal_alto', prioridad:'media', impactoAnual:null,
+        texto:`El personal se come el ${pctPersonal.toFixed(0)}% de tus ventas (lo normal en tu sector es hasta ${topePersonal}%). Revisa plantilla u horas.` });
+    }
+  }
+
+  // Colchón de tesorería
+  if (a.cashflow.colchonNecesario > 0) {
+    out.push({ clave:'colchon', prioridad:'media', impactoAnual:null,
+      texto:`Ten guardados ~${eur(a.cashflow.colchonNecesario)} € de colchón para aguantar los meses malos sin quedarte sin caja.` });
+  }
+
+  // Orden: por impacto € desc; los null al final (por prioridad alta>media)
+  const peso = { alta:0, media:1 };
+  out.sort((x, y) => {
+    if (x.impactoAnual != null && y.impactoAnual != null) return y.impactoAnual - x.impactoAnual;
+    if (x.impactoAnual != null) return -1;
+    if (y.impactoAnual != null) return 1;
+    return (peso[x.prioridad]||9) - (peso[y.prioridad]||9);
+  });
+  return out;
+};
+
+Engine.resultadoPorTemporada = function (project, m) {
+  const mult = (m == null) ? 1 : Number(m);
+  const cmPct = Engine.costeMercanciaPct(project.margen);
+  const mermaPct = Number(project.mermaPct) || 0;
+  const margenContribucionPct = 100 - cmPct - mermaPct;
+  const costesFijosMes = Engine.costesFijosMensuales(project);
+  const f = project.facturacion || {};
+  const benefMes = (facturacionTipo) =>
+    (Number(facturacionTipo) || 0) * mult * margenContribucionPct / 100 - costesFijosMes;
+  return {
+    fuertes: { benefMes: benefMes(f.mesBueno) },
+    medios:  { benefMes: benefMes(f.mesNormal) },
+    flojos:  { benefMes: benefMes(f.mesMalo) }
+  };
+};
+
+Engine.personalSobreVentas = function (project) {
+  const costeMes = Engine.costePersonalMensual(project);
+  const f = project.facturacion || {};
+  const ratio = (facturacionTipo) => {
+    const fac = Number(facturacionTipo) || 0;
+    return fac > 0 ? costeMes / fac * 100 : 0;
+  };
+  return { verano: ratio(f.mesBueno), invierno: ratio(f.mesMalo) };
+};
+
+Engine.validacionRiesgos = function (project, catalogo) {
+  const cat = Array.isArray(catalogo) ? catalogo : [];
+  const ids = [];
+  cat.forEach(c => (c.items || []).forEach(it => ids.push(it.id)));
+  const marcados = Array.isArray(project && project.riesgosMarcados) ? project.riesgosMarcados : [];
+  const total = ids.length;
+  const hechos = ids.filter(id => marcados.includes(id)).length;
+  const pct = total > 0 ? hechos / total * 100 : 0;
+  const estado = pct >= 80 ? 'Listo' : 'En validación';
+  return { total, hechos, pct, estado };
+};
+
+Engine.ordenarProyectos = function (proyectos, modo) {
+  const lista = (proyectos || []).slice();
+  if (modo !== 'beneficio') return lista;
+  const conDatos = [], sinDatos = [];
+  lista.forEach(p => {
+    if (Engine.facturacionAnualBase(p.facturacion) > 0) conDatos.push(p);
+    else sinDatos.push(p);
+  });
+  conDatos.sort((a, b) =>
+    Engine.analyze(b).realista.beneficioNeto - Engine.analyze(a).realista.beneficioNeto);
+  return conDatos.concat(sinDatos);
+};
+
+if (typeof module !== 'undefined' && module.exports) module.exports = Engine;
+if (typeof window !== 'undefined') window.Engine = Engine;
+
+</script>
+  <script>
+'use strict';
+(function () {
+  const Engine = (typeof require !== 'undefined') ? require('./engine.js')
+    : (typeof window !== 'undefined' ? window.Engine : null);
+
+  const Templates = {};
+
+  const SECTOR_DEFS = {
+    hosteleria: {
+      nombre:'Hostelería', mermaPct:4, ivaPct:10, impuestoPct:20,
+      costeMercanciaPct:32, ticketMedio:9.5, unidadCliente:'tickets', diasAbiertosSemana:6,
+      salarioRefMes:1400,
+      costesFijos:['Alquiler','Suministros (luz/agua/gas)','Gestoría','TPV / software','Mantenimiento maquinaria'],
+      benchmarks:{ costeMercanciaPct:[28,35], mermaPct:[3,5], alquilerSobreVentasPct:[8,12], paybackAnios:[2,4], personalSobreVentasPct:[25,35] },
+      costesOlvidados:['Merma e invitaciones','Impagos / mesas que se van','SS de autónomo','Pagas extra y vacaciones del personal','Mantenimiento de maquinaria','Tu propio sueldo','Recuerda: el IVA no es tuyo']
+    },
+    cafeteria: {
+      nombre:'Cafetería / panadería', mermaPct:5, ivaPct:10, impuestoPct:20,
+      costeMercanciaPct:30, ticketMedio:4.5, unidadCliente:'tickets', diasAbiertosSemana:6,
+      salarioRefMes:1300,
+      costesFijos:['Alquiler','Suministros (luz/agua/gas)','Gestoría','TPV / software','Mantenimiento horno/maquinaria'],
+      benchmarks:{ costeMercanciaPct:[28,35], mermaPct:[4,8], alquilerSobreVentasPct:[8,12], paybackAnios:[2,4], personalSobreVentasPct:[25,35] },
+      costesOlvidados:['Producto fresco que sobra al cierre','Invitaciones / muestras','SS de autónomo','Pagas extra y vacaciones','Mantenimiento de maquinaria','Tu propio sueldo','Recuerda: el IVA no es tuyo']
+    },
+    comercio: {
+      nombre:'Comercio / tienda', mermaPct:2, ivaPct:21, impuestoPct:20,
+      costeMercanciaPct:55, ticketMedio:25, unidadCliente:'tickets', diasAbiertosSemana:6,
+      salarioRefMes:1350,
+      costesFijos:['Alquiler','Suministros','Gestoría','Comisiones datáfono','Seguro local','Marketing'],
+      benchmarks:{ costeMercanciaPct:[50,65], mermaPct:[1,3], alquilerSobreVentasPct:[8,15], paybackAnios:[2,4], personalSobreVentasPct:[10,18] },
+      costesOlvidados:['Stock parado o caducado','Robo / mermas','Comisiones del datáfono','Devoluciones','SS de autónomo','Tu propio sueldo','Recuerda: el IVA no es tuyo']
+    },
+    peluqueria: {
+      nombre:'Peluquería / estética', mermaPct:1, ivaPct:21, impuestoPct:20,
+      costeMercanciaPct:12, ticketMedio:25, unidadCliente:'servicios', diasAbiertosSemana:6,
+      salarioRefMes:1300,
+      costesFijos:['Alquiler','Suministros','Gestoría','Productos','Seguro'],
+      benchmarks:{ costeMercanciaPct:[8,18], mermaPct:[0,2], alquilerSobreVentasPct:[8,15], paybackAnios:[2,4], personalSobreVentasPct:[30,45] },
+      costesOlvidados:['Citas perdidas (no-shows)','Formación','Productos de reventa','SS de autónomo','Tu propio tiempo en la silla','Tu propio sueldo','Recuerda: el IVA no es tuyo']
+    },
+    servicios: {
+      nombre:'Servicios / autónomo', mermaPct:0, ivaPct:21, impuestoPct:20,
+      costeMercanciaPct:5, ticketMedio:0, unidadCliente:'clientes', diasAbiertosSemana:5,
+      salarioRefMes:1600,
+      costesFijos:['Cuota de autónomo','Gestoría','Software / herramientas','Teléfono / Internet','Seguro RC'],
+      benchmarks:{ costeMercanciaPct:[0,10], mermaPct:[0,2], alquilerSobreVentasPct:[0,8], paybackAnios:[0,2], personalSobreVentasPct:[0,40] },
+      costesOlvidados:['Cuota de autónomo','Tiempo no facturable (admin, captación)','Vacaciones sin ingresos','Impagos de clientes','IRPF','Tu "sueldo" real','Recuerda: el IVA no es tuyo']
+    },
+    lavado_renting: {
+      nombre:'Lavado + Renting', mermaPct:1, ivaPct:21, impuestoPct:20,
+      costeMercanciaPct:20, ticketMedio:12, unidadCliente:'coches', diasAbiertosSemana:6,
+      salarioRefMes:1300,
+      costesFijos:['Cuota renting furgoneta','Seguro vehículo','Agua','Luz','Productos químicos','Mantenimiento equipos'],
+      benchmarks:{ costeMercanciaPct:[15,25], mermaPct:[0,2], alquilerSobreVentasPct:[5,10], paybackAnios:[3,5], personalSobreVentasPct:[20,35] },
+      costesOlvidados:['Depreciación de equipos','% de ocupación realista (no llenas siempre)','Seguro del vehículo','Agua y luz variables','Mantenimiento de equipos','Tu propio sueldo']
+    }
+  };
+
+  const AYUDA_CAMPOS = {
+    nombre:'Un nombre para reconocer este proyecto (ej: "Bar del centro").',
+    sector:'Elige el tipo de negocio: precarga lo típico del sector (lo puedes cambiar todo).',
+    mesBueno:'Cuánto facturas en un mes de temporada FUERTE (de los mejores del año).',
+    mesNormal:'Cuánto facturas en un mes de temporada MEDIA (lo habitual).',
+    mesMalo:'Cuánto facturas en un mes de temporada FLOJA (de los más bajos).',
+    costeMercanciaPct:'De cada 100 € que vendes, cuánto te cuesta la mercancía/materiales. Ej: 30 = te cuesta 30 €.',
+    mermaPct:'% que se pierde: lo que se estropea, se regala, pican mal o no se cobra. Pequeño pero cuenta.',
+    sueldoMes:'Lo que quieres cobrar TÚ al mes. El beneficio se calcula DESPUÉS de pagarte.',
+    horasSemana:'Horas que vas a echar tú a la semana. Sirve para saber a cuánto te sale la hora.',
+    ticketMedio:'Lo que se gasta de media un cliente (un ticket / un servicio / un coche).',
+    diasAbiertosSemana:'Cuántos días a la semana abres.',
+    inversionInicial:'Lo que te cuesta arrancar: obras, maquinaria, fianza, stock inicial, licencias.',
+    impuestoPct:'% de impuestos sobre el beneficio (Sociedades o IRPF). Orientativo.',
+    ivaPct:'El IVA que repercutes. OJO: no es tuyo, lo ingresas a Hacienda.',
+    ssPct:'% que pagas TÚ de Seguridad Social por cada empleado (a cargo de la empresa). Suele rondar el 31% sobre el bruto.',
+    sueldoBrutoMes:'Sueldo BRUTO al mes de cada empleado (sin contar tu parte de Seguridad Social). Se pagan 14 veces al año.'
+  };
+
+  Templates.SECTORES = Object.keys(SECTOR_DEFS).map(id => ({ id, nombre: SECTOR_DEFS[id].nombre }));
+
+  Templates.crearDesdePlantilla = function (sectorId) {
+    const base = Engine.proyectoVacio();
+    const def = SECTOR_DEFS[sectorId];
+    if (!def) { base.sector = 'generico'; base.nombre = 'Nuevo proyecto'; return base; }
+    base.sector = sectorId;
+    base.nombre = def.nombre;
+    base.mermaPct = def.mermaPct;
+    base.ivaPct = def.ivaPct;
+    base.impuestoPct = def.impuestoPct;
+    base.margen = { modo:'global', costeMercanciaPct: def.costeMercanciaPct, productos: [] };
+    base.operativa = Object.assign({}, base.operativa, { ticketMedio: def.ticketMedio, diasAbiertosSemana: def.diasAbiertosSemana, unidadCliente: def.unidadCliente });
+    base.costesFijos = def.costesFijos.map(concepto => ({ concepto, importe: 0 }));
+    return base;
+  };
+
+  Templates.benchmarks = function (sectorId) {
+    const def = SECTOR_DEFS[sectorId];
+    return def ? def.benchmarks : { costeMercanciaPct:[20,40], mermaPct:[0,5], alquilerSobreVentasPct:[5,12], paybackAnios:[2,5] };
+  };
+
+  Templates.SMI = function () { return { mensual: 1184, anioRef: 2025 }; };
+
+  Templates.salarioRefSector = function (sectorId) {
+    const def = SECTOR_DEFS[sectorId];
+    return (def && def.salarioRefMes) ? def.salarioRefMes : 1300;
+  };
+
+  Templates.costesOlvidados = function (sectorId) {
+    const def = SECTOR_DEFS[sectorId];
+    return def ? def.costesOlvidados.slice() : ['Tu propio sueldo','Impagos','SS de autónomo','Mantenimiento','Recuerda: el IVA no es tuyo'];
+  };
+
+  Templates.RIESGOS = function (sectorId) {
+    const base = [
+      { categoria:'Mercado y ubicación', items:[
+        { id:'mercado_zona', texto:'Estudio de la zona / paso de gente' },
+        { id:'mercado_competencia', texto:'Competencia cercana analizada' },
+        { id:'mercado_acceso', texto:'Accesibilidad y aparcamiento' },
+        { id:'mercado_concepto', texto:'El local encaja con el concepto' }
+      ]},
+      { categoria:'Números', items:[
+        { id:'numeros_facturacion', texto:'Facturación estimada con base realista' },
+        { id:'numeros_margenes', texto:'Márgenes contrastados con el sector' },
+        { id:'numeros_costesfijos', texto:'Costes fijos completos (sin olvidos)' },
+        { id:'numeros_colchon', texto:'Colchón de tesorería previsto' }
+      ]},
+      { categoria:'Local y contrato', items:[
+        { id:'local_duracion', texto:'Duración y salida del contrato claras' },
+        { id:'local_carencia', texto:'Carencia inicial negociada' },
+        { id:'local_reparaciones', texto:'Responsabilidad de reparaciones definida' },
+        { id:'local_licencias', texto:'Licencias y permisos viables' }
+      ]},
+      { categoria:'Obras y equipo', items:[
+        { id:'obras_reforma', texto:'Obras / reforma presupuestadas' },
+        { id:'obras_maquinaria', texto:'Maquinaria y equipos cotizados' },
+        { id:'obras_tpv', texto:'TPV / software elegido' }
+      ]},
+      { categoria:'Personal y legal', items:[
+        { id:'legal_convenio', texto:'Coste laboral con convenio confirmado' },
+        { id:'legal_alta', texto:'Alta de actividad y forma jurídica' },
+        { id:'legal_seguro', texto:'Seguro de responsabilidad civil' }
+      ]}
+    ];
+    const extras = {
+      hosteleria: { categoria:'Específico: Hostelería', items:[
+        { id:'host_licencia', texto:'Licencia de actividad y terraza' },
+        { id:'host_humos', texto:'Extracción de humos / insonorización' },
+        { id:'host_alergenos', texto:'Control de alérgenos y APPCC' },
+        { id:'host_proveedores', texto:'Carta y proveedores de bebida cerrados' }
+      ]},
+      cafeteria: { categoria:'Específico: Cafetería', items:[
+        { id:'cafe_licencia', texto:'Licencia de actividad y obrador' },
+        { id:'cafe_maquinaria', texto:'Maquinaria de frío y horno dimensionada' },
+        { id:'cafe_caducidad', texto:'Control de caducidades y merma de fresco' },
+        { id:'cafe_proveedor', texto:'Proveedor de café / bollería fijado' }
+      ]},
+      comercio: { categoria:'Específico: Comercio', items:[
+        { id:'com_surtido', texto:'Surtido y proveedores con plazos de pago' },
+        { id:'com_stock', texto:'Control de stock y temporada' },
+        { id:'com_tpv', texto:'TPV / datáfono con comisiones claras' },
+        { id:'com_devoluciones', texto:'Política de devoluciones definida' }
+      ]},
+      peluqueria: { categoria:'Específico: Peluquería', items:[
+        { id:'pelu_habilitacion', texto:'Habilitación y formación del personal' },
+        { id:'pelu_citas', texto:'Software de citas y gestión de no-shows' },
+        { id:'pelu_higiene', texto:'Protocolo de higiene y desinfección' },
+        { id:'pelu_productos', texto:'Productos y proveedores fijados' }
+      ]},
+      servicios: { categoria:'Específico: Servicios', items:[
+        { id:'serv_cartera', texto:'Cartera inicial de clientes / captación' },
+        { id:'serv_autonomo', texto:'Cuota de autónomo prevista' },
+        { id:'serv_nofacturable', texto:'Tiempo no facturable contemplado' },
+        { id:'serv_contratos', texto:'Contratos y condiciones de pago con clientes' }
+      ]},
+      lavado_renting: { categoria:'Específico: Lavado + renting', items:[
+        { id:'lav_agua', texto:'Suministro de agua y vertidos (licencia ambiental)' },
+        { id:'lav_mantenimiento', texto:'Mantenimiento de maquinaria de lavado' },
+        { id:'lav_flota', texto:'Flota: seguros, ITV y mantenimiento' },
+        { id:'lav_ocupacion', texto:'Ocupación realista de la flota' }
+      ]}
+    };
+    const sec = extras[sectorId];
+    return sec ? [sec].concat(base) : base;
+  };
+
+  Templates.ayudaCampos = function () { return AYUDA_CAMPOS; };
+
+  Templates.plantillaDesdeProyecto = function (proyecto, nombre, id) {
+    return {
+      id: id,
+      nombre: nombre,
+      datos: {
+        mermaPct: proyecto.mermaPct,
+        ivaPct: proyecto.ivaPct,
+        impuestoPct: proyecto.impuestoPct,
+        margen: { modo:'global', costeMercanciaPct: (proyecto.margen && proyecto.margen.costeMercanciaPct) || 0, productos: [] },
+        operativa: Object.assign({}, proyecto.operativa),
+        costesFijos: (proyecto.costesFijos || []).map(c => ({ concepto: c.concepto, importe: 0 })),
+        costesOlvidados: (proyecto.costesOlvidadosMarcados || []).slice()
+      }
+    };
+  };
+
+  Templates.crearDesdePersonalizada = function (plantilla) {
+    const base = Engine.proyectoVacio();
+    const d = plantilla.datos || {};
+    base.sector = 'personalizada:' + plantilla.id;
+    base.nombre = plantilla.nombre || 'Proyecto';
+    if (d.mermaPct != null) base.mermaPct = d.mermaPct;
+    if (d.ivaPct != null) base.ivaPct = d.ivaPct;
+    if (d.impuestoPct != null) base.impuestoPct = d.impuestoPct;
+    if (d.margen) base.margen = Object.assign({ modo:'global', costeMercanciaPct:0, productos:[] }, d.margen);
+    if (d.operativa) base.operativa = Object.assign({}, base.operativa, d.operativa);
+    if (Array.isArray(d.costesFijos)) base.costesFijos = d.costesFijos.map(c => ({ concepto:c.concepto, importe: c.importe || 0 }));
+    return base;
+  };
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = Templates;
+  if (typeof window !== 'undefined') window.Templates = Templates;
+})();
+
+</script>
+  <script>
+'use strict';
+(function () {
+  const Engine = (typeof require !== 'undefined') ? require('./engine.js')
+    : (typeof window !== 'undefined' ? window.Engine : null);
+
+  const Storage = {};
+  const CLAVE = 'simuladorx';
+
+  Storage.serializar = function (estado) { return JSON.stringify(estado); };
+  Storage.deserializar = function (str) { return JSON.parse(str); };
+
+  function mergeProfundo(base, parcial) {
+    const out = Array.isArray(base) ? base.slice() : Object.assign({}, base);
+    if (!parcial || typeof parcial !== 'object') return out;
+    for (const k of Object.keys(parcial)) {
+      const bv = base ? base[k] : undefined, pv = parcial[k];
+      if (pv && typeof pv === 'object' && !Array.isArray(pv) && bv && typeof bv === 'object' && !Array.isArray(bv)) {
+        out[k] = mergeProfundo(bv, pv);
+      } else if (pv !== undefined) {
+        out[k] = pv;
+      }
+    }
+    return out;
+  }
+
+  Storage.migrar = function (estado) {
+    if (!estado || typeof estado !== 'object') return { version:1, proyectos:[], activoId:null, plantillas:[], ordenLista:'manual' };
+    const proyectos = (estado.proyectos || []).map(p => {
+      const completo = mergeProfundo(Engine.proyectoVacio(), p);
+      completo.id = p.id;
+      return completo;
+    });
+    return { version:1, proyectos, activoId: (proyectos.some(p => p.id === estado.activoId) ? estado.activoId : (proyectos[0] && proyectos[0].id)) || null, plantillas: Array.isArray(estado.plantillas) ? estado.plantillas : [], ordenLista: estado.ordenLista === 'beneficio' ? 'beneficio' : 'manual' };
+  };
+
+  Storage.nuevoId = function () {
+    return 'p_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  };
+
+  Storage.cargar = function () {
+    try { return Storage.migrar(Storage.deserializar(window.localStorage.getItem(CLAVE))); }
+    catch (e) { return Storage.migrar(null); }
+  };
+
+  Storage.guardar = function (estado) {
+    try { window.localStorage.setItem(CLAVE, Storage.serializar(estado)); return true; }
+    catch (e) { return false; }
+  };
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = Storage;
+  if (typeof window !== 'undefined') window.Storage = Storage;
+})();
+
+</script>
+  <script>
+'use strict';
+const UI = {};
+UI.el = function (tag, props, hijos) {
+  const n = document.createElement(tag);
+  if (props) for (const k of Object.keys(props)) {
+    if (k === 'class') n.className = props[k];
+    else if (k === 'html') n.innerHTML = props[k];
+    else if (k.startsWith('on') && typeof props[k] === 'function') n.addEventListener(k.slice(2), props[k]);
+    else if (k === 'value') n.value = props[k];
+    else n.setAttribute(k, props[k]);
+  }
+  (Array.isArray(hijos) ? hijos : (hijos != null ? [hijos] : [])).forEach(h => {
+    if (h == null) return;
+    n.appendChild(typeof h === 'string' ? document.createTextNode(h) : h);
+  });
+  return n;
+};
+UI.eur = n => (Math.round(n)||0).toLocaleString('es-ES') + ' €';
+UI.pct = n => (n||0).toFixed(1) + ' %';
+// helper: input numérico/texto que escribe en project[path] y refresca dashboard
+UI.campo = function (project, etiqueta, obj, clave, tipo, ayudaKey, ejemplo) {
+  const input = UI.el('input', { type: tipo || 'number', value: obj[clave] != null ? obj[clave] : '',
+    oninput: (e) => {
+      obj[clave] = (tipo === 'text') ? e.target.value : parseFloat(e.target.value || '0');
+      App.guardarDebounced();
+    }});
+  if (ejemplo) input.setAttribute('placeholder', ejemplo);
+  const hijos = [UI.el('label', null, etiqueta), input];
+  if (ayudaKey && Templates.ayudaCampos()[ayudaKey]) hijos.push(UI.el('div',{class:'microayuda'}, Templates.ayudaCampos()[ayudaKey]));
+  return UI.el('div', { class:'field' }, hijos);
+};
+
+UI.regenerarCalendario = function (project) {
+  const f = project.facturacion;
+  const nB = Math.max(0, Math.floor(Number(f.nBuenos) || 0));
+  const nN = Math.max(0, Math.floor(Number(f.nNormales) || 0));
+  const nM = Math.max(0, Math.floor(Number(f.nMalos) || 0));
+  let cal = 'B'.repeat(nB) + 'N'.repeat(nN) + 'M'.repeat(nM);
+  const arr = cal.split('').slice(0, 12);
+  while (arr.length < 12) arr.push('N');
+  project.calendario = arr;
+  // Rewrite counts to match the calendar exactly
+  project.facturacion.nBuenos = project.calendario.filter(x => x === 'B').length;
+  project.facturacion.nNormales = project.calendario.filter(x => x === 'N').length;
+  project.facturacion.nMalos = project.calendario.filter(x => x === 'M').length;
+};
+
+UI.calendarioEditor = function (project) {
+  const cont = UI.el('div',{class:'field'},[UI.el('label',null,'Calendario del año (toca cada mes: Bueno/Normal/Malo)')]);
+  const fila = UI.el('div',{class:'cal-fila'});
+  const ciclo = { B:'N', N:'M', M:'B' };
+  const sincronizarConteos = () => {
+    const c = project.calendario;
+    project.facturacion.nBuenos = c.filter(x=>x==='B').length;
+    project.facturacion.nNormales = c.filter(x=>x==='N').length;
+    project.facturacion.nMalos = c.filter(x=>x==='M').length;
+  };
+  project.calendario.forEach((t,i)=>{
+    const b = UI.el('button',{class:'cal-mes cal-'+t, onclick:()=>{
+      project.calendario[i] = ciclo[project.calendario[i]];
+      sincronizarConteos(); App.guardarDebounced();
+      App.refrescarTab();
+    }}, Engine.MESES[i] + ' · ' + project.calendario[i]);
+    fila.appendChild(b);
+  });
+  cont.appendChild(fila);
+  return cont;
+};
+
+UI.bloqueMargen = function (project) {
+  const m = project.margen;
+  const sel = UI.el('select',{ onchange:(e)=>{ m.modo=e.target.value; App.guardarDebounced(); App.refrescarTab();} },
+    [['global','Margen global por %'],['productos','Tabla de productos']].map(([v,l])=>
+      UI.el('option',{value:v,...(m.modo===v?{selected:'selected'}:{})},l)));
+  const card = UI.el('div',{class:'card'},[UI.el('h2',null,'Margen / coste de lo que vendes'),
+    UI.el('div',{class:'field'},[UI.el('label',null,'Modo'),sel])]);
+  if (m.modo === 'global') {
+    card.appendChild(UI.campo(project,'Coste de mercancía/materiales (% de ventas)',m,'costeMercanciaPct','number','costeMercanciaPct','30'));
+    const bM = Templates.benchmarks(project.sector);
+    card.appendChild(UI.el('div',{class:'microayuda'}, 'Normal del sector: ' + bM.costeMercanciaPct[0] + '–' + bM.costeMercanciaPct[1] + '%'));
+  } else {
+    (m.productos||[]).forEach((p,idx)=>{
+      card.appendChild(UI.el('div',{class:'grid-2'},[
+        UI.campo(project,'Producto',p,'nombre','text'), UI.campo(project,'Peso en ventas (%)',p,'pesoPct'),
+        UI.campo(project,'Coste (€)',p,'coste'), UI.campo(project,'Precio venta (€)',p,'precio'),
+        UI.el('button',{class:'btn',onclick:()=>{ m.productos.splice(idx,1); App.guardarDebounced(); App.refrescarTab();}},'Quitar')
+      ]));
+    });
+    card.appendChild(UI.el('button',{class:'btn',onclick:()=>{ (m.productos=m.productos||[]).push({nombre:'',coste:0,precio:0,pesoPct:0}); App.guardarDebounced(); App.refrescarTab();}},'+ Añadir producto'));
+  }
+  return card;
+};
+
+UI.bloqueCostesFijos = function (project) {
+  const card = UI.el('div',{class:'card'},[UI.el('h2',null,'Costes fijos (€/mes)')]);
+  project.costesFijos.forEach((c,idx)=>{
+    card.appendChild(UI.el('div',{class:'grid-2'},[
+      UI.campo(project,'Concepto',c,'concepto','text'),
+      UI.el('div',{class:'field'},[UI.el('label',null,'€/mes'),
+        UI.el('div',{style:'display:flex;gap:6px'},[
+          UI.el('input',{type:'number',value:c.importe,oninput:(e)=>{c.importe=parseFloat(e.target.value||'0');App.guardarDebounced();}}),
+          UI.el('button',{class:'btn',onclick:()=>{project.costesFijos.splice(idx,1);App.guardarDebounced();App.refrescarTab();}},'×')
+        ])])
+    ]));
+  });
+  card.appendChild(UI.el('button',{class:'btn',onclick:()=>{project.costesFijos.push({concepto:'',importe:0});App.guardarDebounced();App.refrescarTab();}},'+ Añadir coste fijo'));
+  return card;
+};
+
+UI.estimadorFacturacion = function (project) {
+  const wrap = UI.el('div',{class:'estimador'});
+  const st = { clientesDia: 0 };
+  const cli = UI.el('input',{type:'number',placeholder:'clientes/día',oninput:function(e){st.clientesDia=parseFloat(e.target.value||'0');}});
+  const out = UI.el('span',{class:'muted'});
+  const calc = function(){ const dias=(project.operativa.diasAbiertosSemana||6)*4.33; const v=Math.round(st.clientesDia*(project.operativa.ticketMedio||0)*dias); out.textContent = v? ('≈ '+v.toLocaleString('es-ES')+' €/mes'):''; return v; };
+  cli.addEventListener('input', calc);
+  const aplicar = UI.el('button',{class:'btn',onclick:function(){ const v=calc(); if(v){ project.facturacion.mesNormal=v; App.guardarDebounced(); App.refrescarTab();} }},'Usar en "temporada media"');
+  wrap.appendChild(UI.el('div',{class:'microayuda'},'Estimar: clientes/día × ticket ('+(project.operativa.ticketMedio||0)+' €) × días/mes'));
+  wrap.appendChild(cli); wrap.appendChild(out); wrap.appendChild(aplicar);
+  return wrap;
+};
+
+UI.estimadorInversion = function (project) {
+  const items = ['Obras / reforma','Maquinaria / equipos','Fianza','Stock inicial','Licencias / permisos','Mobiliario'];
+  const wrap = UI.el('div',{class:'estimador'}); const vals = {};
+  const out = UI.el('div',{class:'kpi'});
+  const total = function(){ const t=Object.values(vals).reduce(function(s,n){return s+(n||0);},0); out.textContent = 'Total: '+Math.round(t).toLocaleString('es-ES')+' €'; return t; };
+  items.forEach(function(it){ wrap.appendChild(UI.el('div',{class:'field'},[UI.el('label',null,it), UI.el('input',{type:'number',placeholder:'€',oninput:function(e){vals[it]=parseFloat(e.target.value||'0');total();}})])); });
+  wrap.appendChild(out);
+  wrap.appendChild(UI.el('button',{class:'btn',onclick:function(){ project.inversionInicial=Math.round(total()); App.guardarDebounced(); App.refrescarTab(); }},'Usar como inversión inicial'));
+  return wrap;
+};
+
+UI.bloquePersonal = function (project) {
+  const ssPct = Number(project.ssPct) || 0;
+  const smi = Templates.SMI();
+  const card = UI.el('div',{class:'card'},[UI.el('h2',null,'Personal (empleados)')]);
+
+  // % Seguridad Social (empresa)
+  card.appendChild(UI.campo(project,'% Seguridad Social (empresa)',project,'ssPct','number','ssPct','31'));
+
+  // Aviso de doble conteo si quedara un coste fijo manual de sueldos y además hay empleados
+  const tieneSueldoManual = (project.costesFijos||[]).some(c => /sueldo|nómina|nomina/i.test(c.concepto||''));
+  if (tieneSueldoManual && (project.empleados||[]).length) {
+    card.appendChild(UI.el('div',{class:'reco reco--alto'},
+      'Tienes un coste fijo de sueldos y además empleados aquí: revisa que no estés contando el personal dos veces.'));
+  }
+
+  // Tabla de empleados
+  (project.empleados||[]).forEach((emp, idx) => {
+    const fila = UI.el('div',{class:'grid-2'},[
+      UI.campo(project,'Puesto',emp,'puesto','text'),
+      UI.el('div',{class:'field'},[UI.el('label',null,'Nº de personas'),
+        UI.el('input',{type:'number',value:emp.numero!=null?emp.numero:'',oninput:(e)=>{
+          emp.numero=parseFloat(e.target.value||'0');App.guardarDebounced();App.refrescarTab();
+        }})]),
+      UI.el('div',{class:'field'},[UI.el('label',null,'Horas/semana'),
+        UI.el('input',{type:'number',value:emp.horasSemana!=null?emp.horasSemana:'',oninput:(e)=>{
+          emp.horasSemana=parseFloat(e.target.value||'0');App.guardarDebounced();App.refrescarTab();
+        }})]),
+      UI.el('div',{class:'field'},[UI.el('label',null,'Bruto €/mes'),
+        UI.el('div',{style:'display:flex;gap:6px'},[
+          UI.el('input',{type:'number',value:emp.sueldoBrutoMes!=null?emp.sueldoBrutoMes:'',oninput:(e)=>{
+            emp.sueldoBrutoMes=parseFloat(e.target.value||'0');App.guardarDebounced();App.refrescarTab();
+          }}),
+          UI.el('button',{class:'btn',title:'Quitar empleado',onclick:()=>{
+            project.empleados.splice(idx,1);App.guardarDebounced();App.refrescarTab();
+          }},'×')
+        ])])
+    ]);
+    card.appendChild(fila);
+    // Botón "usar referencia del sector" (prorratea por horas/40)
+    card.appendChild(UI.el('button',{class:'btn',onclick:()=>{
+      const ref = Templates.salarioRefSector(project.sector);
+      const horas = Number(emp.horasSemana)||40;
+      emp.sueldoBrutoMes = Math.round(ref * Math.min(1, horas/40));
+      App.guardarDebounced();App.refrescarTab();
+    }},'Usar referencia del sector ('+Templates.salarioRefSector(project.sector)+' €/mes a jornada completa)'));
+    // Aviso de sueldo por debajo del SMI
+    if (Engine.sueldoBajoSMI(emp, smi.mensual)) {
+      card.appendChild(UI.el('div',{class:'microayuda'},
+        '⚠️ Este sueldo queda por debajo del SMI ('+smi.mensual+' €/mes a jornada completa, ref. '+smi.anioRef+').'));
+    }
+    // Desglose por persona
+    const ce = Engine.costeEmpleado(emp, ssPct);
+    card.appendChild(UI.el('div',{class:'microayuda'},
+      'Coste empresa: '+UI.eur(ce.costeMes)+'/mes · '+UI.eur(ce.costeAnual)+'/año (bruto '+UI.eur(ce.brutoAnual)+' + SS '+UI.eur(ce.ss)+', 14 pagas).'));
+  });
+
+  card.appendChild(UI.el('button',{class:'btn',onclick:()=>{
+    (project.empleados=project.empleados||[]).push({puesto:'',numero:1,horasSemana:40,sueldoBrutoMes:0});
+    App.guardarDebounced();App.refrescarTab();
+  }},'+ Añadir empleado'));
+
+  // Calculadora de cobertura
+  const o = project.operativa;
+  const cob = Engine.coberturaEmpleados({
+    horasAbiertasDia: o.horasAbiertasDia, diasSemana: o.diasAbiertosSemana,
+    personasSimultaneas: o.personasSimultaneas, jornadaHoras: 40 });
+  const calc = UI.el('div',{class:'card'},[
+    UI.el('h2',null,'¿Cuántos empleados necesito?'),
+    UI.el('div',{class:'microayuda'},'Horas que abres × días/semana × personas a la vez = horas a cubrir. Lo divide entre una jornada de 40h.'),
+    UI.el('div',{class:'grid-2'},[
+      UI.el('div',{class:'field'},[UI.el('label',null,'Horas abiertas/día'),
+        UI.el('input',{type:'number',placeholder:'10',value:o.horasAbiertasDia!=null?o.horasAbiertasDia:'',oninput:(e)=>{
+          o.horasAbiertasDia=parseFloat(e.target.value||'0');App.guardarDebounced();App.refrescarTab();
+        }})]),
+      UI.el('div',{class:'field'},[UI.el('label',null,'Días abiertos/semana'),
+        UI.el('input',{type:'number',value:o.diasAbiertosSemana!=null?o.diasAbiertosSemana:'',oninput:(e)=>{
+          o.diasAbiertosSemana=parseFloat(e.target.value||'0');App.guardarDebounced();App.refrescarTab();
+        }})]),
+      UI.el('div',{class:'field'},[UI.el('label',null,'Personas a la vez'),
+        UI.el('input',{type:'number',placeholder:'2',value:o.personasSimultaneas!=null?o.personasSimultaneas:'',oninput:(e)=>{
+          o.personasSimultaneas=parseFloat(e.target.value||'0');App.guardarDebounced();App.refrescarTab();
+        }})])
+    ]),
+    UI.el('div',{class:'kpi'}, cob.horasSemana+' h/semana a cubrir → '+cob.empleadosNecesarios+' empleados a jornada completa'),
+    UI.el('button',{class:'btn',onclick:()=>{
+      const c = Engine.coberturaEmpleados({ horasAbiertasDia:o.horasAbiertasDia, diasSemana:o.diasAbiertosSemana, personasSimultaneas:o.personasSimultaneas, jornadaHoras:40 });
+      project.empleados = project.empleados || [];
+      for (let i=0;i<c.empleadosNecesarios;i++) project.empleados.push({puesto:'',numero:1,horasSemana:40,sueldoBrutoMes:Templates.salarioRefSector(project.sector)});
+      App.guardarDebounced();App.refrescarTab();
+    }},'Crear esos empleados con el sueldo de referencia')
+  ]);
+  card.appendChild(calc);
+
+  // Totales
+  const totalMes = Engine.costePersonalMensual(project);
+  card.appendChild(UI.el('div',{class:'kpi'+(totalMes>0?'':' muted')},
+    'Coste total de personal: '+UI.eur(totalMes)+'/mes · '+UI.eur(Engine.costePersonalAnual(project))+'/año'));
+
+  return card;
+};
+
+UI.renderDatos = function (project, cont) {
+  cont = cont || document.getElementById('panel-tab'); cont.innerHTML = '';
+  const f = project.facturacion, o = project.operativa, pr = project.propietario;
+
+  // Identidad + sector
+  const plantillasUsuario = App.state.plantillas || [];
+  // Determinar valor seleccionado en el select
+  const valorSectorActual = project.sector || 'generico';
+  const opcionesPredefinidas = Templates.SECTORES.map(s =>
+    UI.el('option', { value:s.id, ...(s.id===valorSectorActual?{selected:'selected'}:{}) }, s.nombre));
+  const opcionesPersonalizadas = plantillasUsuario.map(t => {
+    const val = 'personalizada:' + t.id;
+    return UI.el('option', { value:val, ...(val===valorSectorActual?{selected:'selected'}:{}) }, t.nombre);
+  });
+  const opcionOtro = UI.el('option', { value:'generico', ...('generico'===valorSectorActual && !Templates.SECTORES.find(s=>s.id===valorSectorActual) ? {selected:'selected'} : {}) }, 'Otro / personalizado');
+  const grupoBase = UI.el('optgroup', { label:'Sectores predefinidos' }, opcionesPredefinidas);
+  const selOpciones = [grupoBase];
+  if (plantillasUsuario.length) {
+    const grupoMias = UI.el('optgroup', { label:'Mis plantillas' }, opcionesPersonalizadas);
+    selOpciones.push(grupoMias);
+  }
+  selOpciones.push(opcionOtro);
+  const selSector = UI.el('select', {
+    onchange:(e)=>{
+      const v = e.target.value;
+      if (v.indexOf('personalizada:') === 0) {
+        const t = (App.state.plantillas||[]).find(t => ('personalizada:'+t.id) === v);
+        if (t) { const np = Templates.crearDesdePersonalizada(t); Object.assign(project, { sector:np.sector, mermaPct:np.mermaPct, ivaPct:np.ivaPct, impuestoPct:np.impuestoPct, margen:np.margen, operativa:np.operativa, costesFijos:np.costesFijos }); }
+      } else {
+        const np = Templates.crearDesdePlantilla(v);
+        Object.assign(project, { sector:np.sector, mermaPct:np.mermaPct, ivaPct:np.ivaPct, impuestoPct:np.impuestoPct, margen:np.margen, operativa:np.operativa, costesFijos:np.costesFijos });
+      }
+      App.guardarDebounced(); App.refrescarTab();
+    }
+  }, selOpciones);
+  // Construir tarjeta Proyecto con botón "Guardar como plantilla" y lista de personalizadas
+  const cardProyectoHijos = [
+    UI.el('h2',null,'Proyecto'),
+    UI.campo(project,'Nombre',project,'nombre','text'),
+    UI.el('div',{class:'field'},[UI.el('label',null,'Sector'), selSector]),
+    UI.el('button',{class:'btn',onclick:App.guardarComoPlantilla},'Guardar como plantilla')
+  ];
+  if (plantillasUsuario.length) {
+    const listaPlantillas = UI.el('div',{class:'field'},[UI.el('label',null,'Mis plantillas guardadas')]);
+    plantillasUsuario.forEach(t => {
+      listaPlantillas.appendChild(UI.el('div',{style:'display:flex;gap:6px;align-items:center;margin-top:4px'},[
+        UI.el('span',null,t.nombre),
+        UI.el('button',{class:'btn',onclick:()=>App.borrarPlantilla(t.id)},'Borrar')
+      ]));
+    });
+    cardProyectoHijos.push(listaPlantillas);
+  }
+  cont.appendChild(UI.el('div',{class:'card'},cardProyectoHijos));
+
+  // Facturación por temporada
+  cont.appendChild(UI.el('div',{class:'card'},[
+    UI.el('h2',null,'Facturación por temporada (€/mes y nº de meses)'),
+    UI.el('div',{class:'grid-2'},[
+      UI.campo(project,'€ temporada fuerte',f,'mesBueno','number','mesBueno','18000'),
+      UI.el('div',{class:'field'},[UI.el('label',null,'nº meses fuertes'),
+        UI.el('input',{type:'number',value:f.nBuenos!=null?f.nBuenos:'',oninput:(e)=>{
+          f.nBuenos=Math.max(0,Math.floor(Number(e.target.value)||0));
+          UI.regenerarCalendario(project); App.guardarDebounced();
+          App.refrescarTab();
+        }})]),
+      UI.campo(project,'€ temporada media',f,'mesNormal','number','mesNormal','12000'),
+      UI.el('div',{class:'field'},[UI.el('label',null,'nº meses medios'),
+        UI.el('input',{type:'number',value:f.nNormales!=null?f.nNormales:'',oninput:(e)=>{
+          f.nNormales=Math.max(0,Math.floor(Number(e.target.value)||0));
+          UI.regenerarCalendario(project); App.guardarDebounced();
+          App.refrescarTab();
+        }})]),
+      UI.campo(project,'€ temporada floja',f,'mesMalo','number','mesMalo','7000'),
+      UI.el('div',{class:'field'},[UI.el('label',null,'nº meses flojos'),
+        UI.el('input',{type:'number',value:f.nMalos!=null?f.nMalos:'',oninput:(e)=>{
+          f.nMalos=Math.max(0,Math.floor(Number(e.target.value)||0));
+          UI.regenerarCalendario(project); App.guardarDebounced();
+          App.refrescarTab();
+        }})])
+    ]),
+    UI.calendarioEditor(project),   // Step 2
+    UI.estimadorFacturacion(project)
+  ]));
+
+  // Margen (global + tabla productos opcional)
+  cont.appendChild(UI.bloqueMargen(project));   // Step 3
+
+  // Merma
+  const bMerma = Templates.benchmarks(project.sector);
+  cont.appendChild(UI.el('div',{class:'card'},[
+    UI.el('h2',null,'Merma, regalos e impagos'),
+    UI.campo(project,'% de la facturación que se pierde',project,'mermaPct','number','mermaPct','4'),
+    UI.el('div',{class:'microayuda'}, 'Normal del sector: ' + bMerma.mermaPct[0] + '–' + bMerma.mermaPct[1] + '%')
+  ]));
+
+  // Costes fijos (lista editable)
+  cont.appendChild(UI.bloqueCostesFijos(project));  // Step 4
+
+  // Personal (empleados)
+  cont.appendChild(UI.bloquePersonal(project));
+
+  // Inversión, impuestos, IVA, escenarios
+  const detallesInversion = UI.el('details',null,[
+    UI.el('summary',null,'Estimar mi inversión'),
+    UI.estimadorInversion(project)
+  ]);
+  cont.appendChild(UI.el('div',{class:'card'},[
+    UI.el('h2',null,'Inversión e impuestos'),
+    UI.el('div',{class:'grid-2'},[
+      UI.campo(project,'Inversión inicial (€)',project,'inversionInicial','number','inversionInicial','40000'),
+      UI.campo(project,'Impuesto sobre beneficio (%)',project,'impuestoPct','number','impuestoPct'),
+      UI.campo(project,'IVA (%)',project,'ivaPct','number','ivaPct'),
+      UI.campo(project,'Escenario optimista (+%)',project.escenarios,'optimistaPct'),
+      UI.campo(project,'Escenario pesimista (−%)',project.escenarios,'pesimistaPct')
+    ]),
+    detallesInversion
+  ]));
+
+  // Tu sueldo y tus horas
+  cont.appendChild(UI.el('div',{class:'card'},[
+    UI.el('h2',null,'Tu sueldo y tus horas'),
+    UI.el('div',{class:'grid-2'},[
+      UI.campo(project,'Sueldo que quieres cobrar (€/mes)',pr,'sueldoMes','number','sueldoMes','1800'),
+      UI.campo(project,'Horas que echas a la semana',pr,'horasSemana','number','horasSemana','50')
+    ])
+  ]));
+
+  // Operativa (ticket medio, días)
+  cont.appendChild(UI.el('div',{class:'card'},[
+    UI.el('h2',null,'Operativa'),
+    UI.el('div',{class:'grid-2'},[
+      UI.campo(project,'Ticket medio (€)',o,'ticketMedio','number','ticketMedio','9.5'),
+      UI.campo(project,'Días abiertos / semana',o,'diasAbiertosSemana')
+    ]),
+    UI.campo(project,'Cómo llamas a tus clientes (clientes/tickets/coches)',o,'unidadCliente','text')
+  ]));
+
+  // Pros y contras (texto libre)
+  cont.appendChild(UI.el('div',{class:'card'},[
+    UI.el('h2',null,'Pros y contras (tus notas)'),
+    UI.campo(project,'Pros',project.prosContras,'pros','text'),
+    UI.campo(project,'Contras',project.prosContras,'contras','text')
+  ]));
+};
+
+UI.escenarioSel = 'base';   // 'pesimista' | 'base' | 'optimista' (persiste entre repintados)
+UI.ESCENARIOS = [['pesimista','Pesimista'],['base','Base'],['optimista','Optimista']];
+
+UI.multiplicadorEscenario = function (project, sel) {
+  const esc = project.escenarios || {};
+  if (sel === 'optimista') return 1 + (Number(esc.optimistaPct) || 0) / 100;
+  if (sel === 'pesimista') return 1 - (Number(esc.pesimistaPct) || 0) / 100;
+  return 1;
+};
+
+UI.barrasTemporada = function (temp) {
+  const filas = [['fuertes','Fuertes'],['medios','Medios'],['flojos','Flojos']];
+  const maxAbs = Math.max(1, ...filas.map(([k]) => Math.abs(temp[k].benefMes)));
+  const card = UI.el('div',{class:'card'},[UI.el('h2',null,'Beneficio por temporada (€/mes)')]);
+  filas.forEach(([k,lab]) => {
+    const v = temp[k].benefMes;
+    const neg = v < 0;
+    const w = Math.abs(v) / maxAbs * 100;
+    card.appendChild(UI.el('div',{class:'barra-temp'},[
+      UI.el('div',{class:'barra-temp__lab'}, lab),
+      UI.el('div',{class:'barra-temp__track'},[ UI.el('div',{class:'barra-temp__fill'+(neg?' neg':''),style:'width:'+w+'%'}) ]),
+      UI.el('div',{class:'barra-temp__val'+(neg?' neg':'')}, UI.eur(v)+'/mes')
+    ]));
+  });
+  return card;
+};
+
+UI.renderEscenarios = function (project, cont) {
+  cont = cont || document.getElementById('panel-tab'); cont.innerHTML = '';
+  const a = Engine.analyze(project);
+  const sel = UI.escenarioSel;
+  const labelSel = (UI.ESCENARIOS.find(([v]) => v === sel) || ['base','Base'])[1];
+  const m = UI.multiplicadorEscenario(project, sel);
+  const sc = Engine.computeScenario(project, m);
+  const temp = Engine.resultadoPorTemporada(project, m);
+  const pv = Engine.personalSobreVentas(project);
+
+  // Imprimir / PDF
+  cont.appendChild(UI.el('button',{class:'btn',style:'margin-bottom:12px',onclick:()=>window.print()},'🖨️ Imprimir / Guardar PDF'));
+
+  // Selector de escenario (segmented)
+  cont.appendChild(UI.el('div',{class:'segmented'}, UI.ESCENARIOS.map(([val,lab]) =>
+    UI.el('button',{class:'seg'+(sel===val?' seg--activa':''),onclick:()=>{ UI.escenarioSel=val; App.refrescarTab(); }}, lab)
+  )));
+
+  // Veredicto (semáforo)
+  cont.appendChild(UI.el('div',{class:'card'},[
+    UI.el('div',{class:'semaforo semaforo--'+a.verdict.color},[
+      UI.el('div',null,[ UI.el('div',{class:'kpi'}, a.verdict.titulo),
+        UI.el('div',null, a.verdict.motivo) ])
+    ])
+  ]));
+
+  // Barras por temporada
+  cont.appendChild(UI.barrasTemporada(temp));
+
+  // Métricas clave (rejilla)
+  const metrica = (lab, val, neg) => UI.el('div',{class:'metrica'},[
+    UI.el('div',{class:'metrica__lab'}, lab),
+    UI.el('div',{class:'metrica__val'+(neg?' neg':'')}, val)
+  ]);
+  const beMes = (isFinite(a.breakeven.breakevenAnual)) ? a.breakeven.breakevenAnual/12 : null;
+  const euroHora = a.propietario.euroHoraReal;
+  const metricas = UI.el('div',{class:'metricas'},[
+    metrica('Break-even mensual (base)', beMes!=null ? UI.eur(beMes)+'/mes' : '—'),
+    metrica('Costes fijos (base)', UI.eur(Engine.costesFijosMensuales(project))+'/mes'),
+    metrica('Personal/Ventas verano (base)', UI.pct(pv.verano)),
+    metrica('Personal/Ventas invierno (base)', UI.pct(pv.invierno)),
+    metrica('€/hora real (base)', euroHora!=null ? euroHora.toFixed(2)+' €' : '—', euroHora!=null && euroHora<8),
+    metrica('Payback (base)', (a.inversion && isFinite(a.inversion.paybackAnios)) ? a.inversion.paybackAnios.toFixed(1)+' años' : '—'),
+    metrica('Ingresos anuales ('+labelSel.toLowerCase()+')', UI.eur(sc.facturacion)),
+    metrica('Beneficio anual ('+labelSel.toLowerCase()+')', UI.eur(sc.beneficioNeto)+'/año', sc.beneficioNeto<0)
+  ]);
+  cont.appendChild(UI.el('div',{class:'card'},[
+    UI.el('h2',null,'Métricas clave'),
+    metricas,
+    UI.el('div',{class:'microayuda'},'"(base)" = no cambia con el escenario; ingresos y beneficio sí.')
+  ]));
+
+  // Dónde va cada euro (escala de grises) — del escenario seleccionado
+  cont.appendChild(UI.el('div',{class:'card'},[
+    UI.el('h2',null,'Dónde va cada euro ('+labelSel.toLowerCase()+')'), UI.barraApilada(sc)
+  ]));
+
+  // Plan de acción (prescriptivo)
+  const objetivos = Engine.objetivos(project, a, Templates.benchmarks(project.sector));
+  const cardPlan = UI.el('div',{class:'card card--plan'},[UI.el('h2',null,'🎯 Tu plan de acción')]);
+  if (!objetivos.length) cardPlan.appendChild(UI.el('div',{class:'muted'},'Vas bien: no hay acciones urgentes.'));
+  objetivos.forEach(o => cardPlan.appendChild(UI.el('div',{class:'accion accion--'+o.prioridad},[
+    UI.el('div', null, o.texto),
+    o.impactoAnual != null ? UI.el('div',{class:'accion__impacto'}, '+'+Math.round(o.impactoAnual).toLocaleString('es-ES')+' €/año') : null
+  ])));
+  cont.appendChild(cardPlan);
+
+  // ¿Y si…? (sensibilidad)
+  UI.renderSensibilidad(project, cont);
+
+  // Más detalle (toda la analítica existente, plegada)
+  const det = UI.el('details',{class:'mas-detalle'},[UI.el('summary',null,'Más detalle')]);
+  UI.renderDashboardCajaYRatios(project, a, det);
+  UI.renderDashboardListas(project, a, det);
+  cont.appendChild(det);
+};
+
+UI.aroPct = function (pct) {
+  const p = Math.min(100, Math.max(0, Number(pct) || 0));
+  const r = 34, c = 2 * Math.PI * r, off = c * (1 - p / 100);
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns,'svg');
+  svg.setAttribute('viewBox','0 0 80 80'); svg.setAttribute('width','80'); svg.setAttribute('height','80');
+  const mk = (extra) => { const el = document.createElementNS(ns,'circle');
+    el.setAttribute('cx',40); el.setAttribute('cy',40); el.setAttribute('r',r);
+    el.setAttribute('fill','none'); el.setAttribute('stroke-width','8');
+    for (const k of Object.keys(extra)) el.setAttribute(k, extra[k]); return el; };
+  svg.appendChild(mk({ stroke:'#262932' }));
+  svg.appendChild(mk({ stroke:'#4a90d9', 'stroke-dasharray':c, 'stroke-dashoffset':off,
+    'stroke-linecap':'round', transform:'rotate(-90 40 40)' }));
+  const t = document.createElementNS(ns,'text');
+  t.setAttribute('x',40); t.setAttribute('y',46); t.setAttribute('text-anchor','middle');
+  t.setAttribute('font-size','18'); t.setAttribute('font-weight','600'); t.setAttribute('fill','#e8e9ec');
+  t.textContent = Math.round(p) + '%';
+  svg.appendChild(t);
+  return svg;
+};
+
+UI.renderRiesgos = function (project, cont) {
+  cont = cont || document.getElementById('panel-tab'); cont.innerHTML = '';
+  if (!Array.isArray(project.riesgosMarcados)) project.riesgosMarcados = [];
+  const catalogo = Templates.RIESGOS(project.sector);
+  const v = Engine.validacionRiesgos(project, catalogo);
+
+  // Cabecera de progreso
+  cont.appendChild(UI.el('div',{class:'card riesgos-cab'},[
+    UI.aroPct(v.pct),
+    UI.el('div',{class:'riesgos-cab__txt'},[
+      UI.el('div',{class:'kpi'}, v.hechos + ' / ' + v.total + ' validados'),
+      UI.el('div',{class:'estado' + (v.estado === 'Listo' ? ' estado--listo' : '')}, v.estado),
+      UI.el('div',{class:'muted'}, 'Marca lo que ya tienes resuelto antes de abrir. Estarás "Listo" al validar el 80 %.')
+    ])
+  ]));
+
+  // Categorías con ítems marcables
+  catalogo.forEach(cat => {
+    const card = UI.el('div',{class:'card'},[UI.el('h2',null,cat.categoria)]);
+    cat.items.forEach(it => {
+      const marcado = project.riesgosMarcados.includes(it.id);
+      const chk = UI.el('input',{type:'checkbox', ...(marcado?{checked:'checked'}:{}), onchange:(e)=>{
+        if (e.target.checked) { if (!project.riesgosMarcados.includes(it.id)) project.riesgosMarcados.push(it.id); }
+        else project.riesgosMarcados = project.riesgosMarcados.filter(x => x !== it.id);
+        App.guardarDebounced(); App.refrescarTab();
+      }});
+      card.appendChild(UI.el('label',{class:'riesgo-item' + (marcado?' hecho':'')},[chk, UI.el('span',null,it.texto)]));
+    });
+    cont.appendChild(card);
+  });
+};
+
+UI.barraApilada = function (s) {
+  const personal = Math.max(0, Number(s.costePersonalAnual)||0);
+  const fijosSinPersonal = Math.max(0, (s.costesFijosAnuales||0) - personal);
+  const partes = [
+    { etq:'Mercancía', val:s.costeMercancia, color:'#3a3d44' },
+    { etq:'Merma', val:s.merma, color:'#494d56' },
+    { etq:'Personal', val:personal, color:'#585c66' },
+    { etq:'Fijos', val:fijosSinPersonal, color:'#686d78' },
+    { etq:'Impuestos', val:s.impuestos, color:'#787d8a' },
+    { etq:'Beneficio', val:Math.max(0,s.beneficioNeto), color:'#4a90d9' }
+  ];
+  const total = partes.reduce((t,p)=>t+p.val,0) || 1;
+  const W=520,H=46; let x=0;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`); svg.setAttribute('width','100%');
+  partes.forEach(p=>{
+    const w = p.val/total*W;
+    const r = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    r.setAttribute('x',x);r.setAttribute('y',0);r.setAttribute('width',Math.max(0,w));r.setAttribute('height',24);
+    r.setAttribute('fill',p.color);
+    const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x',x);t.setAttribute('y',40);t.setAttribute('font-size','10');t.setAttribute('fill','#868a93');
+    t.textContent = p.etq+' '+Math.round(p.val/total*100)+'%';
+    svg.appendChild(r); if (w>40) svg.appendChild(t); x+=w;
+  });
+  return svg;
+};
+
+UI.graficoLinea = function (serie) {
+  const W=520,H=160,pad=24;
+  const min=Math.min(0,...serie), max=Math.max(0,...serie), rango=(max-min)||1;
+  const x = i => pad + i*(W-2*pad)/(serie.length-1);
+  const y = v => H-pad - (v-min)/rango*(H-2*pad);
+  const svgns='http://www.w3.org/2000/svg';
+  const svg=document.createElementNS(svgns,'svg'); svg.setAttribute('viewBox',`0 0 ${W} ${H}`); svg.setAttribute('width','100%');
+  // eje cero
+  const zero=document.createElementNS(svgns,'line');
+  zero.setAttribute('x1',pad);zero.setAttribute('x2',W-pad);zero.setAttribute('y1',y(0));zero.setAttribute('y2',y(0));
+  zero.setAttribute('stroke','#d2d2d7');zero.setAttribute('stroke-dasharray','4 4'); svg.appendChild(zero);
+  // línea
+  const path=document.createElementNS(svgns,'polyline');
+  path.setAttribute('fill','none');path.setAttribute('stroke','var(--accent)');path.setAttribute('stroke-width','2');
+  path.setAttribute('points',serie.map((v,i)=>x(i)+','+y(v)).join(' ')); svg.appendChild(path);
+  return svg;
+};
+
+UI.renderDashboardCajaYRatios = function (project, a, cont) {
+  // Flujo de caja + colchón
+  cont.appendChild(UI.el('div',{class:'card'},[
+    UI.el('h2',null,'Flujo de caja del año (realista)'),
+    UI.graficoLinea(a.cashflow.acumulada),
+    UI.el('div',{class:'kpi'+(a.cashflow.colchonNecesario>0?' kpi--neg':'')},
+      'Colchón necesario: '+UI.eur(a.cashflow.colchonNecesario)),
+    UI.el('div',{class:'muted'}, a.cashflow.colchonNecesario>0
+      ? 'Dinero que necesitas tener guardado para no quedarte sin caja (punto más bajo: '+Engine.MESES[a.cashflow.puntoMasBajoMes]+').'
+      : 'Tu caja nunca se queda en negativo durante el año.')
+  ]));
+
+  // Punto de equilibrio + clientes/día
+  const be = a.breakeven;
+  const pctEq = (isFinite(be.breakevenAnual) && a.base>0) ? Math.min(100, be.breakevenAnual/a.base*100) : 100;
+  cont.appendChild(UI.el('div',{class:'card'},[
+    UI.el('h2',null,'Punto de equilibrio'),
+    UI.el('div',null,'Necesitas facturar '+(isFinite(be.breakevenAnual)?UI.eur(be.breakevenAnual):'—')+' al año para no perder.'),
+    UI.el('div',{class:'barra-eq'},[ UI.el('div',{class:'barra-eq__fill',style:'width:'+pctEq+'%'}) ]),
+    UI.el('div',{class:'muted'},'Eso es el '+pctEq.toFixed(0)+'% de tu facturación realista (colchón de seguridad: '+(isFinite(be.margenSeguridadPct)?be.margenSeguridadPct.toFixed(0):'—')+'%).'),
+    be.clientesDiaEquilibrio!=null ? UI.el('div',{class:'kpi'}, Math.ceil(be.clientesDiaEquilibrio)+' '+(project.operativa.unidadCliente||'clientes')+'/día para no perder') : null
+  ]));
+
+  // €/hora real
+  if (a.propietario.euroHoraReal !== null) {
+    cont.appendChild(UI.el('div',{class:'card'},[
+      UI.el('h2',null,'Lo que te renta tu tiempo'),
+      UI.el('div',{class:'kpi'+(a.propietario.euroHoraReal<8?' kpi--neg':'')}, a.propietario.euroHoraReal.toFixed(2)+' €/hora'),
+      UI.el('div',{class:'muted'}, Math.round(a.propietario.horasAnio/48)+' h/semana trabajadas'+(a.propietario.euroHoraReal<8?' — por debajo de lo razonable, ojo con quemarte.':'.'))
+    ]));
+  }
+
+  // Payback / ROI
+  if (a.inversion) {
+    cont.appendChild(UI.el('div',{class:'card'},[
+      UI.el('h2',null,'Recuperación de la inversión'),
+      UI.el('div',null,'Inversión: '+UI.eur(a.inversion.inversionInicial)),
+      UI.el('div',{class:'kpi'}, isFinite(a.inversion.paybackAnios)? a.inversion.paybackAnios.toFixed(1)+' años en recuperarla' : 'No se recupera (no hay beneficio)'),
+      UI.el('div',{class:'muted'},'ROI anual: '+UI.pct(a.inversion.roiPct))
+    ]));
+  }
+
+  // Aviso IVA
+  cont.appendChild(UI.el('div',{class:'card'},[
+    UI.el('h2',null,'Recordatorio del IVA'),
+    UI.el('div',{class:'muted'},'Cada trimestre tendrás que ingresar a Hacienda ~'+UI.eur(a.iva.trimestralAprox)+' de IVA. No es dinero tuyo aunque esté en tu caja.')
+  ]));
+};
+
+UI.tooltip = function (texto) {
+  return UI.el('span',{class:'tip',title:texto},' ⓘ');
+};
+
+UI.renderDashboardListas = function (project, a, cont) {
+  // Cosas a corregir
+  const cardReco = UI.el('div',{class:'card'},[UI.el('h2',null,'Cosas a corregir')]);
+  if (!a.recomendaciones.length) cardReco.appendChild(UI.el('div',{class:'muted'},'Sin avisos: los números pintan bien.'));
+  a.recomendaciones.forEach(r => cardReco.appendChild(UI.el('div',{class:'reco reco--'+r.nivel}, r.texto)));
+  cont.appendChild(cardReco);
+
+  // Checklist costes olvidados
+  const lista = Templates.costesOlvidados(project.sector);
+  const cardChk = UI.el('div',{class:'card'},[UI.el('h2',null,'Costes que la gente olvida')]);
+  lista.forEach(item=>{
+    const marcado = project.costesOlvidadosMarcados.includes(item);
+    const chk = UI.el('input',{type:'checkbox',...(marcado?{checked:'checked'}:{}),onchange:(e)=>{
+      if (e.target.checked) project.costesOlvidadosMarcados.push(item);
+      else project.costesOlvidadosMarcados = project.costesOlvidadosMarcados.filter(x=>x!==item);
+      App.guardarDebounced();
+    }});
+    cardChk.appendChild(UI.el('label',{class:'check-item'},[chk, item]));
+  });
+  cont.appendChild(cardChk);
+
+  // Benchmarks del sector
+  const b = Templates.benchmarks(project.sector);
+  const dentro = (val,[mn,mx]) => val>=mn && val<=mx;
+  const cm = Engine.costeMercanciaPct(project.margen);
+  const cardBm = UI.el('div',{class:'card'},[UI.el('h2',null,['Referencias del sector', UI.tooltip('Rangos típicos para comparar tus números.')]),
+    UI.el('div',null,['Coste mercancía: '+cm.toFixed(0)+'% ', UI.el('span',{class: dentro(cm,b.costeMercanciaPct)?'':'kpi--neg'}, '(normal '+b.costeMercanciaPct[0]+'–'+b.costeMercanciaPct[1]+'%)')]),
+    UI.el('div',null,['Merma: '+(project.mermaPct||0)+'% ', UI.el('span',{class: dentro(project.mermaPct||0,b.mermaPct)?'':'kpi--neg'}, '(normal '+b.mermaPct[0]+'–'+b.mermaPct[1]+'%)')])
+  ]);
+  cont.appendChild(cardBm);
+};
+
+UI.renderSensibilidad = function (project, cont) {
+  const card = UI.el('div',{class:'card'},[UI.el('h2',null,['¿Y si…? (mueve y mira)', UI.tooltip('Simula cambios sin tocar tus datos.')])]);
+  const estado = { fact:100, fijos:100, merc:100 };
+  const salida = UI.el('div',{class:'kpi'});
+  const peligro = UI.el('div',{class:'muted'});
+  const recalc = () => {
+    const copia = JSON.parse(JSON.stringify(project));
+    const f = copia.facturacion;
+    ['mesBueno','mesNormal','mesMalo'].forEach(k=> f[k] = f[k]*estado.fact/100);
+    copia.costesFijos = copia.costesFijos.map(c=>({...c, importe:c.importe*estado.fijos/100}));
+    if (copia.propietario) copia.propietario.sueldoMes = copia.propietario.sueldoMes; // el sueldo no escala con "fijos" salvo que se quiera
+    if (copia.margen.modo==='global') copia.margen.costeMercanciaPct = copia.margen.costeMercanciaPct*estado.merc/100;
+    const r = Engine.computeScenario(copia, 1);
+    salida.textContent = 'Beneficio realista: ' + UI.eur(r.beneficioNeto) + '/año';
+    salida.className = 'kpi' + (r.beneficioNeto<0?' kpi--neg':'');
+    // Variable más peligrosa: impacto adverso de −10 puntos en cada variable
+    const base = r.beneficioNeto;
+    const varFact = (()=>{ const c2=JSON.parse(JSON.stringify(copia)); ['mesBueno','mesNormal','mesMalo'].forEach(k=>c2.facturacion[k]=c2.facturacion[k]*(100-10)/100); return Engine.computeScenario(c2,1).beneficioNeto; })();
+    const varFijos = (()=>{ const c2=JSON.parse(JSON.stringify(copia)); c2.costesFijos=c2.costesFijos.map(cc=>({...cc,importe:cc.importe*(100+10)/100})); return Engine.computeScenario(c2,1).beneficioNeto; })();
+    const varMerc = (()=>{ const c2=JSON.parse(JSON.stringify(copia)); if(c2.margen.modo==='global') c2.margen.costeMercanciaPct=c2.margen.costeMercanciaPct*(100+10)/100; return Engine.computeScenario(c2,1).beneficioNeto; })();
+    const impactos = [
+      { nombre:'Facturación', delta: base - varFact },
+      { nombre:'Costes fijos', delta: base - varFijos },
+      { nombre:'Coste de mercancía', delta: base - varMerc }
+    ];
+    const masPeligrosa = impactos.reduce((a,b) => b.delta > a.delta ? b : a);
+    peligro.textContent = 'La variable más peligrosa: ' + masPeligrosa.nombre;
+  };
+  const slider = (etq, clave) => {
+    const val = UI.el('span',{class:'muted'}, estado[clave]+'%');
+    const inp = UI.el('input',{type:'range',min:50,max:150,value:estado[clave],oninput:(e)=>{estado[clave]=parseInt(e.target.value,10);val.textContent=estado[clave]+'%';recalc();}});
+    return UI.el('div',{class:'field'},[UI.el('label',null,[etq+' ', val]), inp]);
+  };
+  card.appendChild(slider('Facturación','fact'));
+  card.appendChild(slider('Costes fijos','fijos'));
+  card.appendChild(slider('Coste de mercancía','merc'));
+  card.appendChild(salida);
+  card.appendChild(peligro);
+  recalc();
+  cont.appendChild(card);
+};
+
+UI.renderComparador = function () {
+  const cont = document.getElementById('panel-tab'); cont.innerHTML = '';
+  const filas = App.state.proyectos.map(p => {
+    const a = Engine.analyze(p);
+    return { nombre:p.nombre, beneficio:a.realista.beneficioNeto, margen:a.realista.margenNetoPct,
+      payback: a.inversion && isFinite(a.inversion.paybackAnios) ? a.inversion.paybackAnios : Infinity,
+      colchon: a.cashflow.colchonNecesario, veredicto:a.verdict.color };
+  });
+  const mejor = (clave, masAltoMejor) => {
+    let idx=-1, best = masAltoMejor?-Infinity:Infinity;
+    filas.forEach((f,i)=>{ const v=f[clave]; if (masAltoMejor? v>best : v<best){best=v;idx=i;} });
+    return idx;
+  };
+  const mejorBenef = mejor('beneficio',true), mejorPayback = mejor('payback',false), mejorColchon = mejor('colchon',false);
+  const th = t => UI.el('th',null,t);
+  const tabla = UI.el('table',{class:'tabla-comp'},[
+    UI.el('thead',null,UI.el('tr',null,[th('Proyecto'),th('Beneficio/año'),th('Margen neto'),th('Payback'),th('Colchón'),th('Veredicto')])),
+    UI.el('tbody',null,filas.map((f,i)=>UI.el('tr',null,[
+      UI.el('td',null,f.nombre),
+      UI.el('td',{class:i===mejorBenef?'mejor':''},UI.eur(f.beneficio)),
+      UI.el('td',null,UI.pct(f.margen)),
+      UI.el('td',{class:i===mejorPayback&&isFinite(f.payback)?'mejor':''}, isFinite(f.payback)?f.payback.toFixed(1)+' años':'—'),
+      UI.el('td',{class:i===mejorColchon?'mejor':''},UI.eur(f.colchon)),
+      UI.el('td',null,UI.el('span',{class:'punto punto--'+f.veredicto}))
+    ])))
+  ]);
+  cont.appendChild(UI.el('div',{class:'card'},[
+    UI.el('h2',null,'Comparador de proyectos'),
+    UI.el('button',{class:'btn',onclick:App.verLista},'← Volver'),
+    tabla
+  ]));
+};
+
+if (typeof window !== 'undefined') window.UI = UI;
+
+</script>
+  <script>
+'use strict';
+const Guia = {};
+Guia.paso = 0;
+Guia.PASOS = ['sector','facturacion','margen','merma','fijos','personal','sueldo','inversion'];
+
+Guia.abrir = function () { Guia.paso = 0; App.modo = 'guia'; App.render(); };
+Guia.salir = function () { App.modo = 'proyecto'; App.tab = 'datos'; App.render(); };
+Guia.siguiente = function () { if (Guia.paso < Guia.PASOS.length-1) { Guia.paso++; App.render(); } else Guia.finalizar(); };
+Guia.atras = function () { if (Guia.paso > 0) { Guia.paso--; App.render(); } };
+Guia.finalizar = function () { App.modo = 'proyecto'; App.tab = 'datos'; App.render(); };
+
+Guia.render = function (project) {
+  const cont = document.getElementById('panel-tab'); cont.innerHTML = '';
+  const ayuda = Templates.ayudaCampos();
+  const b = Templates.benchmarks(project.sector);
+  const total = Guia.PASOS.length;
+  const card = UI.el('div',{class:'card guia'});
+  card.appendChild(UI.el('div',{class:'guia__prog'}, 'Paso ' + (Guia.paso+1) + ' de ' + total));
+  const paso = Guia.PASOS[Guia.paso];
+  // Cada paso: título + explicación + campos. (contenido por paso)
+  if (paso === 'sector') {
+    card.appendChild(UI.el('h2',null,'¿Qué tipo de negocio es?'));
+    const esGenericoOPersonalizado = project.sector === 'generico' || (project.sector && project.sector.indexOf('personalizada:') === 0);
+    const opcionesSector = Templates.SECTORES.map(s=>UI.el('option',{value:s.id,...(s.id===project.sector?{selected:'selected'}:{})}, s.nombre));
+    opcionesSector.push(UI.el('option',{value:'generico',...(esGenericoOPersonalizado?{selected:'selected'}:{})}, 'Otro / personalizado'));
+    const sel = UI.el('select',{onchange:(e)=>{ const np=Templates.crearDesdePlantilla(e.target.value); Object.assign(project,{sector:np.sector,mermaPct:np.mermaPct,ivaPct:np.ivaPct,impuestoPct:np.impuestoPct,margen:np.margen,operativa:np.operativa,costesFijos:np.costesFijos}); App.guardarDebounced(); App.render(); }},
+      opcionesSector);
+    card.appendChild(UI.el('div',{class:'field'},[UI.el('label',null,'Sector'), sel]));
+    card.appendChild(UI.el('div',{class:'microayuda'},'Elegir sector precarga lo típico (merma, IVA, costes…). Luego lo ajustas.'));
+  } else if (paso === 'facturacion') {
+    card.appendChild(UI.el('h2',null,'¿Cuánto crees que vas a facturar?'));
+    card.appendChild(UI.el('div',{class:'microayuda'},'Por temporada: una fuerte, una media y una floja, y cuántos meses hay de cada al año.'));
+    const f=project.facturacion;
+    const mkConteoInput = function(etiqueta, clave) {
+      const inp = UI.el('input',{type:'number',value:f[clave]!=null?f[clave]:'',oninput:(e)=>{
+        f[clave]=Math.max(0,Math.floor(Number(e.target.value)||0));
+        UI.regenerarCalendario(project); App.guardarDebounced(); App.render();
+      }});
+      return UI.el('div',{class:'field'},[UI.el('label',null,etiqueta), inp]);
+    };
+    card.appendChild(UI.el('div',{class:'grid-2'},[
+      UI.campo(project,'€ temporada fuerte',f,'mesBueno','number','mesBueno','18000'), mkConteoInput('nº meses fuertes','nBuenos'),
+      UI.campo(project,'€ temporada media',f,'mesNormal','number','mesNormal','12000'), mkConteoInput('nº meses medios','nNormales'),
+      UI.campo(project,'€ temporada floja',f,'mesMalo','number','mesMalo','7000'), mkConteoInput('nº meses flojos','nMalos')
+    ]));
+    card.appendChild(UI.estimadorFacturacion(project));
+  } else if (paso === 'margen') {
+    card.appendChild(UI.el('h2',null,'¿Cuánto te cuesta lo que vendes?'));
+    card.appendChild(UI.el('div',{class:'microayuda'}, ayuda.costeMercanciaPct + ' Normal del sector: '+b.costeMercanciaPct[0]+'–'+b.costeMercanciaPct[1]+'%'));
+    card.appendChild(UI.campo(project,'Coste de mercancía (%)',project.margen,'costeMercanciaPct','number',null,'30'));
+  } else if (paso === 'merma') {
+    card.appendChild(UI.el('h2',null,'Merma, regalos e impagos'));
+    card.appendChild(UI.el('div',{class:'microayuda'}, ayuda.mermaPct + ' Normal del sector: '+b.mermaPct[0]+'–'+b.mermaPct[1]+'%'));
+    card.appendChild(UI.campo(project,'% que se pierde',project,'mermaPct','number',null,'4'));
+  } else if (paso === 'fijos') {
+    card.appendChild(UI.el('h2',null,'Tus gastos fijos cada mes'));
+    card.appendChild(UI.el('div',{class:'microayuda'},'Vienen precargados los típicos del sector: pon el importe de cada uno (€/mes).'));
+    card.appendChild(UI.bloqueCostesFijos(project));
+  } else if (paso === 'personal') {
+    card.appendChild(UI.el('h2',null,'Tu personal'));
+    card.appendChild(UI.el('div',{class:'microayuda'},'Cada empleado cuesta más que su sueldo: 14 pagas y tu parte de Seguridad Social (~31%). La calculadora te dice cuántos necesitas según tus horas de apertura.'));
+    card.appendChild(UI.bloquePersonal(project));
+  } else if (paso === 'sueldo') {
+    card.appendChild(UI.el('h2',null,'Tu sueldo y tus horas'));
+    card.appendChild(UI.el('div',{class:'microayuda'}, ayuda.sueldoMes));
+    card.appendChild(UI.el('div',{class:'grid-2'},[ UI.campo(project,'Sueldo (€/mes)',project.propietario,'sueldoMes','number',null,'1800'), UI.campo(project,'Horas/semana',project.propietario,'horasSemana','number',null,'50') ]));
+  } else if (paso === 'inversion') {
+    card.appendChild(UI.el('h2',null,'¿Cuánto te cuesta arrancar?'));
+    card.appendChild(UI.el('div',{class:'microayuda'}, ayuda.inversionInicial));
+    card.appendChild(UI.campo(project,'Inversión inicial (€)',project,'inversionInicial','number',null,'40000'));
+  }
+  // navegación
+  const nav = UI.el('div',{class:'guia__nav'});
+  if (Guia.paso > 0) nav.appendChild(UI.el('button',{class:'btn',onclick:Guia.atras},'← Atrás'));
+  nav.appendChild(UI.el('button',{class:'btn',onclick:Guia.salir},'Salir'));
+  nav.appendChild(UI.el('button',{class:'btn btn--accent',onclick:Guia.siguiente}, Guia.paso < total-1 ? 'Siguiente →' : 'Ver resultado ✓'));
+  card.appendChild(nav);
+  cont.appendChild(card);
+};
+
+if (typeof window !== 'undefined') window.Guia = Guia;
+
+</script>
+  <script>
+'use strict';
+const App = {};
+App.state = Storage.cargar();
+if (!App.state.proyectos.length) {
+  const p = Object.assign({ id: Storage.nuevoId() }, Engine.proyectoVacio());
+  App.state.proyectos.push(p); App.state.activoId = p.id; Storage.guardar(App.state);
+}
+
+let guardarTimer = null;
+App.guardarDebounced = function () {
+  clearTimeout(guardarTimer);
+  guardarTimer = setTimeout(() => Storage.guardar(App.state), 400);
+};
+
+App.proyectoActivo = () => App.state.proyectos.find(p => p.id === App.state.activoId) || App.state.proyectos[0];
+
+App.crearProyecto = function (sectorId) {
+  const base = Templates.crearDesdePlantilla(sectorId || 'generico');
+  const p = Object.assign({ id: Storage.nuevoId() }, base);
+  App.state.proyectos.push(p); App.state.activoId = p.id;
+  Storage.guardar(App.state); App.render();
+};
+App.seleccionarProyecto = function (id) { App.state.activoId = id; Storage.guardar(App.state); App.render(); };
+App.borrarProyecto = function (id) {
+  if (!confirm('¿Borrar este proyecto?')) return;
+  App.state.proyectos = App.state.proyectos.filter(p => p.id !== id);
+  if (App.state.proyectos.length === 0) {
+    const p = Object.assign({ id: Storage.nuevoId() }, Engine.proyectoVacio());
+    App.state.proyectos.push(p); App.state.activoId = p.id;
+  } else if (App.state.activoId === id) {
+    App.state.activoId = App.state.proyectos[0].id;
+  }
+  Storage.guardar(App.state); App.render();
+};
+App.duplicarProyecto = function (id) {
+  const orig = App.state.proyectos.find(p => p.id === id); if (!orig) return;
+  const copia = JSON.parse(JSON.stringify(orig));
+  copia.id = Storage.nuevoId(); copia.nombre = orig.nombre + ' (versión B)';
+  App.state.proyectos.push(copia); App.state.activoId = copia.id;
+  Storage.guardar(App.state); App.render();
+};
+
+App.guardarComoPlantilla = function () {
+  const p = App.proyectoActivo(); if (!p) return;
+  const nombre = prompt('Nombre para tu plantilla (ej: "Mi tipo de bar")', p.nombre || 'Mi plantilla');
+  if (nombre === null) return;
+  const t = Templates.plantillaDesdeProyecto(p, nombre.trim() || 'Mi plantilla', Storage.nuevoId());
+  App.state.plantillas = App.state.plantillas || [];
+  App.state.plantillas.push(t);
+  Storage.guardar(App.state); App.render();
+  alert('Plantilla guardada. Ya aparece en el desplegable de sector.');
+};
+App.borrarPlantilla = function (id) {
+  App.state.plantillas = (App.state.plantillas || []).filter(t => t.id !== id);
+  Storage.guardar(App.state); App.render();
+};
+App.crearDesdePersonalizada = function (plantilla) {
+  const p = Object.assign({ id: Storage.nuevoId() }, Templates.crearDesdePersonalizada(plantilla));
+  App.state.proyectos.push(p); App.state.activoId = p.id;
+  Storage.guardar(App.state); App.render();
+};
+
+App.cambiarOrden = function (modo) {
+  App.state.ordenLista = (modo === 'beneficio') ? 'beneficio' : 'manual';
+  Storage.guardar(App.state); App.renderOrden(); App.renderLista();
+};
+
+App.renderOrden = function () {
+  const cont = document.getElementById('orden-lista'); if (!cont) return;
+  cont.innerHTML = '';
+  const modo = App.state.ordenLista || 'manual';
+  cont.appendChild(UI.el('span', { class:'orden-lista__etq muted' }, 'Ordenar:'));
+  [['manual','Manual'], ['beneficio','Beneficio']].forEach(([val, etq]) => {
+    cont.appendChild(UI.el('button', {
+      class:'btn btn--seg' + (modo === val ? ' activa' : ''),
+      onclick:() => App.cambiarOrden(val)
+    }, etq));
+  });
+};
+
+App.renderLista = function () {
+  const cont = document.getElementById('lista-proyectos'); cont.innerHTML = '';
+  Engine.ordenarProyectos(App.state.proyectos, App.state.ordenLista).forEach(p => {
+    const tieneDatos = Engine.facturacionAnualBase(p.facturacion) > 0;
+    const a = tieneDatos ? Engine.analyze(p) : null;
+    const color = a ? a.verdict.color : 'neutro';
+    const resumen = a
+      ? UI.el('span', { class:'proyecto-item__benef' + (a.realista.beneficioNeto < 0 ? ' neg' : '') },
+          (a.realista.beneficioNeto >= 0 ? '+' : '') + UI.eur(a.realista.beneficioNeto) + '/año')
+      : UI.el('span', { class:'proyecto-item__benef' }, 'Sin datos');
+    const item = UI.el('div', { class:'proyecto-item' + (p.id===App.state.activoId?' activo':''),
+      onclick:() => App.abrirProyecto(p.id) }, [
+      UI.el('span', { class:'punto punto--'+color }),
+      UI.el('div', { class:'proyecto-item__info' }, [
+        UI.el('div', { class:'proyecto-item__nombre' }, p.nombre || 'Sin nombre'),
+        resumen
+      ]),
+      UI.el('div', { style:'display:flex;gap:6px' }, [
+        UI.el('button', { class:'btn', title:'Duplicar como versión B',
+          onclick:(e)=>{e.stopPropagation();App.duplicarProyecto(p.id);} }, '⧉'),
+        UI.el('button', { class:'btn', title:'Borrar proyecto',
+          onclick:(e)=>{e.stopPropagation();App.borrarProyecto(p.id);} }, '🗑')
+      ])
+    ]);
+    cont.appendChild(item);
+  });
+  const btnComp = document.getElementById('btn-comparar');
+  if (btnComp) {
+    const pocos = App.state.proyectos.length < 2;
+    btnComp.disabled = pocos;
+    btnComp.title = pocos ? 'Necesitas al menos 2 proyectos para comparar' : 'Comparar proyectos';
+  }
+};
+
+// Estado de navegación
+App.modo = 'lista';                 // lista | proyecto | guia | comparador
+App.tab  = 'datos';                 // datos | escenarios | riesgos
+
+App.verLista     = function(){ App.modo='lista'; App.render(); };
+App.abrirProyecto = function(id){ if (id) App.state.activoId = id; App.modo='proyecto'; App.tab='datos'; if (window.UI) UI.escenarioSel='base'; Storage.guardar(App.state); App.render(); };
+App.irATab       = function(tab){ App.tab = tab; App.render(); };
+App.verComparador = function(){ App.modo='comparador'; App.render(); };
+App.verProyecto   = function(){ App.modo='proyecto'; App.render(); };
+
+// Nombre legible del sector para el subtítulo del detalle
+App.nombreSector = function (project) {
+  const s = (Templates.SECTORES || []).find(x => x.id === project.sector);
+  if (s) return s.nombre;
+  const t = (App.state.plantillas || []).find(t => ('personalizada:'+t.id) === project.sector);
+  return t ? t.nombre : 'Personalizado';
+};
+
+// Re-pinta solo la pestaña activa (lo usan los handlers de ui.js)
+App.renderTab = function () {
+  const p = App.proyectoActivo();
+  const panel = document.getElementById('panel-tab');
+  if (App.tab === 'escenarios') UI.renderEscenarios(p, panel);
+  else if (App.tab === 'riesgos') UI.renderRiesgos(p, panel);
+  else UI.renderDatos(p, panel);
+};
+App.refrescarTab = function () {
+  if (App.modo === 'proyecto') App.renderTab();
+  else App.render();
+};
+
+App.render = function () {
+  const vistaLista = document.getElementById('vista-lista');
+  const vistaDetalle = document.getElementById('vista-detalle');
+  App.renderLista();
+  App.renderOrden();
+
+  if (App.modo === 'lista') {
+    vistaLista.hidden = false; vistaDetalle.hidden = true;
+    return;
+  }
+
+  // Cualquier modo que no sea 'lista' usa la vista detalle
+  vistaLista.hidden = true; vistaDetalle.hidden = false;
+  const head = document.querySelector('.detalle-head');
+  const tabs = document.getElementById('tabs');
+
+  if (App.modo === 'guia') { head.hidden = true; tabs.hidden = true; Guia.render(App.proyectoActivo()); return; }
+  if (App.modo === 'comparador') { head.hidden = true; tabs.hidden = true; UI.renderComparador(); return; }
+
+  // modo 'proyecto'
+  head.hidden = false; tabs.hidden = false;
+  const p = App.proyectoActivo();
+  document.getElementById('detalle-nombre').textContent = p.nombre || 'Sin nombre';
+  document.getElementById('detalle-sub').textContent = App.nombreSector(p);
+  tabs.querySelectorAll('.tab').forEach(b => b.classList.toggle('activa', b.dataset.tab === App.tab));
+  App.renderTab();
+};
+
+// Cableado de la cáscara
+document.getElementById('btn-nuevo').addEventListener('click', () => {
+  App.crearProyecto('generico');
+  Guia.abrir();
+});
+document.getElementById('btn-comparar').addEventListener('click', App.verComparador);
+document.getElementById('btn-volver').addEventListener('click', App.verLista);
+document.getElementById('btn-borrar-detalle').addEventListener('click', () => App.borrarProyecto(App.state.activoId));
+document.getElementById('tabs').addEventListener('click', (e) => {
+  const t = e.target.closest('.tab'); if (t && t.dataset.tab) App.irATab(t.dataset.tab);
+});
+document.getElementById('btn-exportar').addEventListener('click', () => {
+  const blob = new Blob([Storage.serializar(App.state)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='simuladorx-backup.json'; a.click();
+  URL.revokeObjectURL(url);
+});
+document.getElementById('btn-importar').addEventListener('click', () => document.getElementById('file-importar').click());
+document.getElementById('file-importar').addEventListener('change', (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      App.state = Storage.migrar(Storage.deserializar(reader.result));
+      if (!App.state.activoId && App.state.proyectos[0]) App.state.activoId = App.state.proyectos[0].id;
+      Storage.guardar(App.state); App.modo='lista'; App.render();
+      alert('Datos importados correctamente.');
+    } catch (err) { alert('El archivo no es válido.'); }
+  };
+  reader.readAsText(file);
+});
+document.addEventListener('DOMContentLoaded', App.render);
+App.render();
+if (typeof window !== 'undefined') window.App = App;
+
+</script>
+</body>
+</html>
