@@ -173,6 +173,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15
 .orden-lista__etq { font-size:13px; }
 .btn--seg { padding:4px 10px; font-size:13px; }
 .btn--seg.activa { background:var(--accent); color:#fff; border-color:var(--accent); }
+.lista-vacia { padding:40px 16px; text-align:center; border:1px dashed var(--border); border-radius:var(--radius); }
+.lista-vacia__txt { font-size:16px; margin-bottom:6px; }
+.lista-vacia__sub { font-size:14px; }
 
 </style>
 </head>
@@ -1593,7 +1596,7 @@ if (typeof window !== 'undefined') window.UI = UI;
 'use strict';
 const Guia = {};
 Guia.paso = 0;
-Guia.PASOS = ['sector','facturacion','margen','merma','fijos','personal','sueldo','inversion'];
+Guia.PASOS = ['sector','facturacion','margen','merma','fijos','personal','sueldo','inversion','escenarios','riesgos'];
 
 Guia.abrir = function () { Guia.paso = 0; App.modo = 'guia'; App.render(); };
 Guia.salir = function () { App.modo = 'proyecto'; App.tab = 'datos'; App.render(); };
@@ -1660,6 +1663,19 @@ Guia.render = function (project) {
     card.appendChild(UI.el('h2',null,'¿Cuánto te cuesta arrancar?'));
     card.appendChild(UI.el('div',{class:'microayuda'}, ayuda.inversionInicial));
     card.appendChild(UI.campo(project,'Inversión inicial (€)',project,'inversionInicial','number',null,'40000'));
+  } else if (paso === 'escenarios') {
+    card.appendChild(UI.el('h2',null,'¿Y si va mejor o peor de lo previsto?'));
+    card.appendChild(UI.el('div',{class:'microayuda'},'Definimos un margen arriba y abajo de tu previsión para ver el mejor y el peor caso. Lo normal: optimista +15 %, pesimista −20 %.'));
+    card.appendChild(UI.el('div',{class:'grid-2'},[
+      UI.campo(project,'Escenario optimista (+%)',project.escenarios,'optimistaPct'),
+      UI.campo(project,'Escenario pesimista (−%)',project.escenarios,'pesimistaPct')
+    ]));
+  } else if (paso === 'riesgos') {
+    card.appendChild(UI.el('h2',null,'Antes de abrir: valida lo importante'));
+    card.appendChild(UI.el('div',{class:'microayuda'},'Marca lo que ya tienes comprobado. No afecta a los números: es tu checklist para no llevarte sustos al abrir.'));
+    const contRiesgos = UI.el('div');
+    card.appendChild(contRiesgos);
+    UI.renderRiesgos(project, contRiesgos);
   }
   // navegación
   const nav = UI.el('div',{class:'guia__nav'});
@@ -1677,10 +1693,6 @@ if (typeof window !== 'undefined') window.Guia = Guia;
 'use strict';
 const App = {};
 App.state = Storage.cargar();
-if (!App.state.proyectos.length) {
-  const p = Object.assign({ id: Storage.nuevoId() }, Engine.proyectoVacio());
-  App.state.proyectos.push(p); App.state.activoId = p.id; Storage.guardar(App.state);
-}
 
 let guardarTimer = null;
 App.guardarDebounced = function () {
@@ -1701,8 +1713,7 @@ App.borrarProyecto = function (id) {
   if (!confirm('¿Borrar este proyecto?')) return;
   App.state.proyectos = App.state.proyectos.filter(p => p.id !== id);
   if (App.state.proyectos.length === 0) {
-    const p = Object.assign({ id: Storage.nuevoId() }, Engine.proyectoVacio());
-    App.state.proyectos.push(p); App.state.activoId = p.id;
+    App.state.activoId = null; App.modo = 'lista';
   } else if (App.state.activoId === id) {
     App.state.activoId = App.state.proyectos[0].id;
   }
@@ -1744,6 +1755,8 @@ App.cambiarOrden = function (modo) {
 App.renderOrden = function () {
   const cont = document.getElementById('orden-lista'); if (!cont) return;
   cont.innerHTML = '';
+  cont.style.display = App.state.proyectos.length ? 'flex' : 'none';
+  if (!App.state.proyectos.length) return;
   const modo = App.state.ordenLista || 'manual';
   cont.appendChild(UI.el('span', { class:'orden-lista__etq muted' }, 'Ordenar:'));
   [['manual','Manual'], ['beneficio','Beneficio']].forEach(([val, etq]) => {
@@ -1780,6 +1793,12 @@ App.renderLista = function () {
     ]);
     cont.appendChild(item);
   });
+  if (App.state.proyectos.length === 0) {
+    cont.appendChild(UI.el('div', { class:'lista-vacia' }, [
+      UI.el('div', { class:'lista-vacia__txt' }, 'Aún no tienes proyectos.'),
+      UI.el('div', { class:'lista-vacia__sub muted' }, 'Pulsa «+ Nuevo proyecto» para empezar con el asistente paso a paso.')
+    ]));
+  }
   const btnComp = document.getElementById('btn-comparar');
   if (btnComp) {
     const pocos = App.state.proyectos.length < 2;
@@ -1824,6 +1843,7 @@ App.render = function () {
   const vistaDetalle = document.getElementById('vista-detalle');
   App.renderLista();
   App.renderOrden();
+  if (App.modo !== 'lista' && !App.proyectoActivo()) App.modo = 'lista';
 
   if (App.modo === 'lista') {
     vistaLista.hidden = false; vistaDetalle.hidden = true;
