@@ -882,11 +882,12 @@ UI.el = function (tag, props, hijos) {
 UI.eur = n => (Math.round(n)||0).toLocaleString('es-ES') + ' €';
 UI.pct = n => (n||0).toFixed(1) + ' %';
 // helper: input numérico/texto que escribe en project[path] y refresca dashboard
-UI.campo = function (project, etiqueta, obj, clave, tipo, ayudaKey, ejemplo) {
+UI.campo = function (project, etiqueta, obj, clave, tipo, ayudaKey, ejemplo, recalc) {
   const input = UI.el('input', { type: tipo || 'number', value: obj[clave] != null ? obj[clave] : '',
     oninput: (e) => {
       obj[clave] = (tipo === 'text') ? e.target.value : parseFloat(e.target.value || '0');
       App.guardarDebounced();
+      if (recalc) App.refrescarTab();
     }});
   if (ejemplo) input.setAttribute('placeholder', ejemplo);
   const hijos = [UI.el('label', null, etiqueta), input];
@@ -894,23 +895,9 @@ UI.campo = function (project, etiqueta, obj, clave, tipo, ayudaKey, ejemplo) {
   return UI.el('div', { class:'field' }, hijos);
 };
 
-UI.regenerarCalendario = function (project) {
-  const f = project.facturacion;
-  const nB = Math.max(0, Math.floor(Number(f.nBuenos) || 0));
-  const nN = Math.max(0, Math.floor(Number(f.nNormales) || 0));
-  const nM = Math.max(0, Math.floor(Number(f.nMalos) || 0));
-  let cal = 'B'.repeat(nB) + 'N'.repeat(nN) + 'M'.repeat(nM);
-  const arr = cal.split('').slice(0, 12);
-  while (arr.length < 12) arr.push('N');
-  project.calendario = arr;
-  // Rewrite counts to match the calendar exactly
-  project.facturacion.nBuenos = project.calendario.filter(x => x === 'B').length;
-  project.facturacion.nNormales = project.calendario.filter(x => x === 'N').length;
-  project.facturacion.nMalos = project.calendario.filter(x => x === 'M').length;
-};
-
 UI.calendarioEditor = function (project) {
-  const cont = UI.el('div',{class:'field'},[UI.el('label',null,'Calendario del año (toca cada mes: Bueno/Normal/Malo)')]);
+  const cont = UI.el('div',{class:'field'},[UI.el('label',null,'Toca cada mes para marcarlo Fuerte / Media / Floja')]);
+  const ETIQ = { B:'Fuerte', N:'Media', M:'Floja' };
   const fila = UI.el('div',{class:'cal-fila'});
   const ciclo = { B:'N', N:'M', M:'B' };
   const sincronizarConteos = () => {
@@ -924,11 +911,19 @@ UI.calendarioEditor = function (project) {
       project.calendario[i] = ciclo[project.calendario[i]];
       sincronizarConteos(); App.guardarDebounced();
       App.refrescarTab();
-    }}, Engine.MESES[i] + ' · ' + project.calendario[i]);
+    }}, Engine.MESES[i] + ' · ' + ETIQ[t]);
     fila.appendChild(b);
   });
   cont.appendChild(fila);
   return cont;
+};
+
+UI.resumenFacturacion = function (project) {
+  const total = Engine.facturacionAnualBase(project.facturacion);
+  return UI.el('div', null, [
+    UI.el('div', { class:'kpi' }, 'Esto suma ≈ ' + UI.eur(total) + '/año'),
+    UI.el('div', { class:'microayuda' }, 'Ejemplo: una heladería — verano fuerte, primavera y otoño media, invierno floja.')
+  ]);
 };
 
 UI.bloqueMargen = function (project) {
@@ -1152,31 +1147,15 @@ UI.renderDatos = function (project, cont) {
 
   // Facturación por temporada
   cont.appendChild(UI.el('div',{class:'card'},[
-    UI.el('h2',null,'Facturación por temporada (€/mes y nº de meses)'),
-    UI.el('div',{class:'grid-2'},[
-      UI.campo(project,'€ temporada fuerte',f,'mesBueno','number','mesBueno','18000'),
-      UI.el('div',{class:'field'},[UI.el('label',null,'nº meses fuertes'),
-        UI.el('input',{type:'number',value:f.nBuenos!=null?f.nBuenos:'',oninput:(e)=>{
-          f.nBuenos=Math.max(0,Math.floor(Number(e.target.value)||0));
-          UI.regenerarCalendario(project); App.guardarDebounced();
-          App.refrescarTab();
-        }})]),
-      UI.campo(project,'€ temporada media',f,'mesNormal','number','mesNormal','12000'),
-      UI.el('div',{class:'field'},[UI.el('label',null,'nº meses medios'),
-        UI.el('input',{type:'number',value:f.nNormales!=null?f.nNormales:'',oninput:(e)=>{
-          f.nNormales=Math.max(0,Math.floor(Number(e.target.value)||0));
-          UI.regenerarCalendario(project); App.guardarDebounced();
-          App.refrescarTab();
-        }})]),
-      UI.campo(project,'€ temporada floja',f,'mesMalo','number','mesMalo','7000'),
-      UI.el('div',{class:'field'},[UI.el('label',null,'nº meses flojos'),
-        UI.el('input',{type:'number',value:f.nMalos!=null?f.nMalos:'',oninput:(e)=>{
-          f.nMalos=Math.max(0,Math.floor(Number(e.target.value)||0));
-          UI.regenerarCalendario(project); App.guardarDebounced();
-          App.refrescarTab();
-        }})])
+    UI.el('h2',null,'Facturación por temporada'),
+    UI.el('div',{class:'microayuda'},'¿Cuánto facturas en un mes típico de cada tipo?'),
+    UI.el('div',{class:'grid-3'},[
+      UI.campo(project,'Mes fuerte (€)',f,'mesBueno','number','mesBueno','18000',true),
+      UI.campo(project,'Mes medio (€)',f,'mesNormal','number','mesNormal','12000',true),
+      UI.campo(project,'Mes flojo (€)',f,'mesMalo','number','mesMalo','7000',true)
     ]),
-    UI.calendarioEditor(project),   // Step 2
+    UI.calendarioEditor(project),
+    UI.resumenFacturacion(project),
     UI.estimadorFacturacion(project)
   ]));
 
@@ -1660,20 +1639,15 @@ Guia.render = function (project) {
     card.appendChild(UI.el('div',{class:'microayuda'},'Elegir sector precarga lo típico (merma, IVA, costes…). Luego lo ajustas.'));
   } else if (paso === 'facturacion') {
     card.appendChild(UI.el('h2',null,'¿Cuánto crees que vas a facturar?'));
-    card.appendChild(UI.el('div',{class:'microayuda'},'Por temporada: una fuerte, una media y una floja, y cuántos meses hay de cada al año.'));
+    card.appendChild(UI.el('div',{class:'microayuda'},'Dinos cuánto facturas en un mes típico de cada tipo y marca en el calendario qué meses son fuertes, medios o flojos.'));
     const f=project.facturacion;
-    const mkConteoInput = function(etiqueta, clave) {
-      const inp = UI.el('input',{type:'number',value:f[clave]!=null?f[clave]:'',oninput:(e)=>{
-        f[clave]=Math.max(0,Math.floor(Number(e.target.value)||0));
-        UI.regenerarCalendario(project); App.guardarDebounced(); App.refrescarTab();
-      }});
-      return UI.el('div',{class:'field'},[UI.el('label',null,etiqueta), inp]);
-    };
-    card.appendChild(UI.el('div',{class:'grid-2'},[
-      UI.campo(project,'€ temporada fuerte',f,'mesBueno','number','mesBueno','18000'), mkConteoInput('nº meses fuertes','nBuenos'),
-      UI.campo(project,'€ temporada media',f,'mesNormal','number','mesNormal','12000'), mkConteoInput('nº meses medios','nNormales'),
-      UI.campo(project,'€ temporada floja',f,'mesMalo','number','mesMalo','7000'), mkConteoInput('nº meses flojos','nMalos')
+    card.appendChild(UI.el('div',{class:'grid-3'},[
+      UI.campo(project,'Mes fuerte (€)',f,'mesBueno','number','mesBueno','18000',true),
+      UI.campo(project,'Mes medio (€)',f,'mesNormal','number','mesNormal','12000',true),
+      UI.campo(project,'Mes flojo (€)',f,'mesMalo','number','mesMalo','7000',true)
     ]));
+    card.appendChild(UI.calendarioEditor(project));
+    card.appendChild(UI.resumenFacturacion(project));
     card.appendChild(UI.estimadorFacturacion(project));
   } else if (paso === 'margen') {
     card.appendChild(UI.el('h2',null,'¿Cuánto te cuesta lo que vendes?'));
