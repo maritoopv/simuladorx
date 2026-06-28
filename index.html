@@ -1665,7 +1665,7 @@ Guia.render = function (project) {
     const mkConteoInput = function(etiqueta, clave) {
       const inp = UI.el('input',{type:'number',value:f[clave]!=null?f[clave]:'',oninput:(e)=>{
         f[clave]=Math.max(0,Math.floor(Number(e.target.value)||0));
-        UI.regenerarCalendario(project); App.guardarDebounced(); App.render();
+        UI.regenerarCalendario(project); App.guardarDebounced(); App.refrescarTab();
       }});
       return UI.el('div',{class:'field'},[UI.el('label',null,etiqueta), inp]);
     };
@@ -1870,8 +1870,29 @@ App.renderTab = function () {
   else UI.renderDatos(p, panel);
 };
 App.refrescarTab = function () {
+  // Re-renderizar destruye el input enfocado y se pierde el foco/cursor (había
+  // que teclear dígito a dígito). Recordamos qué campo del panel tenía el foco
+  // (por su posición) y el cursor, y lo restauramos tras volver a pintar.
+  const panel = document.getElementById('panel-tab');
+  const activo = document.activeElement;
+  let idx = -1, caret = null;
+  if (panel && activo && panel.contains(activo) &&
+      (activo.tagName === 'INPUT' || activo.tagName === 'TEXTAREA' || activo.tagName === 'SELECT')) {
+    idx = Array.prototype.indexOf.call(panel.querySelectorAll('input, textarea, select'), activo);
+    try { caret = activo.selectionStart; } catch (e) { caret = null; }
+  }
+
   if (App.modo === 'proyecto') App.renderTab();
   else App.render();
+
+  if (idx >= 0) {
+    const panel2 = document.getElementById('panel-tab');
+    const el = panel2 && panel2.querySelectorAll('input, textarea, select')[idx];
+    if (el) {
+      el.focus();
+      if (caret != null) { try { el.setSelectionRange(caret, caret); } catch (e) {} }
+    }
+  }
 };
 
 App.render = function () {
