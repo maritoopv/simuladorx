@@ -187,6 +187,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15
 .zona-factor input[type=range] { width:100%; margin:6px 0; }
 .zona-na { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); }
 
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.obs-fila__top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.obs-fila__top input[type=date]{flex:1}
+.obs-add{margin-top:8px}
+
 </style>
 </head>
 <body>
@@ -223,6 +228,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15
         <button class="tab" data-tab="datos">Datos</button>
         <button class="tab" data-tab="escenarios">Escenarios</button>
         <button class="tab" data-tab="zona">Zona</button>
+        <button class="tab" data-tab="campo">Campo</button>
         <button class="tab" data-tab="riesgos">Riesgos</button>
       </nav>
       <main id="panel-tab" class="panel-tab"></main>
@@ -255,7 +261,9 @@ Engine.proyectoVacio = function () {
     prosContras: { pros: '', contras: '' },
     costesOlvidadosMarcados: [],
     riesgosMarcados: [],
-    zona: { factores: {} }
+    zona: { factores: {} },
+    observaciones: [],
+    observacionesParams: { horasDia: 10, diasMes: 26 }
   };
 };
 
@@ -597,6 +605,54 @@ Engine.veredictoZona = function (zona, catalogo) {
   return { nTotal, nValorados, media, nivel, color, debilidades };
 };
 
+Engine.eurHoraObs = function (f) {
+  if (!f || typeof f !== 'object') return null;
+  const num = (x) => (x === '' || x === null || typeof x === 'undefined') ? NaN : Number(x);
+  if (f.metodo === 'B') {
+    const e = num(f.eurHora);
+    return (isFinite(e) && e >= 0) ? e : null;
+  }
+  const v = num(f.ventanaMin), c = num(f.conteo), t = num(f.ticket);
+  if (!isFinite(v) || v <= 0) return null;
+  if (!isFinite(c) || c < 0) return null;
+  if (!isFinite(t) || t < 0) return null;
+  return (c / v) * 60 * t;
+};
+
+Engine.resumenObservaciones = function (observaciones, params, project) {
+  const lista = Array.isArray(observaciones) ? observaciones : [];
+  const p = params || {};
+  const horasDia = Number(p.horasDia) || 0;
+  const diasMes = Number(p.diasMes) || 0;
+  const mesMedioDatos = (project && project.facturacion && Number(project.facturacion.mesNormal)) || 0;
+  const validas = [], fechas = [], franjas = {};
+  lista.forEach(f => {
+    const eh = Engine.eurHoraObs(f);
+    if (eh != null) {
+      validas.push(eh);
+      if (f && f.fecha) fechas.push(f.fecha);
+      if (f && f.franja) franjas[f.franja] = 1;
+    }
+  });
+  const n = validas.length;
+  const franjasDistintas = Object.keys(franjas).length;
+  if (n === 0) {
+    return { n: 0, fechaDesde: null, fechaHasta: null, mediaEurHora: null, cajaDia: 0, cajaMesObs: 0,
+      mesMedioDatos, desviacionPct: null, fiabilidad: 'sin_datos', franjasDistintas: 0 };
+  }
+  const mediaEurHora = validas.reduce((s, x) => s + x, 0) / n;
+  const cajaDia = mediaEurHora * horasDia;
+  const cajaMesObs = cajaDia * diasMes;
+  const desviacionPct = mesMedioDatos ? (cajaMesObs - mesMedioDatos) / mesMedioDatos : null;
+  fechas.sort();
+  let fiabilidad;
+  if (n >= 5 && franjasDistintas >= 3) fiabilidad = 'alta';
+  else if (n >= 3 && franjasDistintas >= 2) fiabilidad = 'media';
+  else fiabilidad = 'baja';
+  return { n, fechaDesde: fechas[0] || null, fechaHasta: fechas[fechas.length - 1] || null,
+    mediaEurHora, cajaDia, cajaMesObs, mesMedioDatos, desviacionPct, fiabilidad, franjasDistintas };
+};
+
 if (typeof module !== 'undefined' && module.exports) module.exports = Engine;
 if (typeof window !== 'undefined') window.Engine = Engine;
 
@@ -847,6 +903,23 @@ if (typeof window !== 'undefined') window.Engine = Engine;
       { clave:'clima',            etiqueta:'Independencia del clima',       ayuda:'1 depende mucho del clima → 10 nada.',                         destacado:false }
     ];
   };
+
+  Templates.OBS_FRANJAS = [
+    { clave: 'manana',   etiqueta: 'Mañana' },
+    { clave: 'mediodia', etiqueta: 'Mediodía' },
+    { clave: 'tarde',    etiqueta: 'Tarde' },
+    { clave: 'noche',    etiqueta: 'Noche' }
+  ];
+  Templates.OBS_CLIMA = [
+    { clave: 'sol',     etiqueta: 'Sol' },
+    { clave: 'nublado', etiqueta: 'Nublado' },
+    { clave: 'lluvia',  etiqueta: 'Lluvia' }
+  ];
+  Templates.OBS_OCUPACION = [
+    { clave: 'vacio', etiqueta: 'Vacío' },
+    { clave: 'medio', etiqueta: 'Medio' },
+    { clave: 'lleno', etiqueta: 'Lleno' }
+  ];
 
   if (typeof module !== 'undefined' && module.exports) module.exports = Templates;
   if (typeof window !== 'undefined') window.Templates = Templates;
@@ -1720,6 +1793,93 @@ UI.renderZona = function (project, cont) {
   cont.appendChild(card);
 };
 
+UI.renderObservaciones = function (project, cont) {
+  cont = cont || document.getElementById('panel-tab'); cont.innerHTML = '';
+  if (!Array.isArray(project.observaciones)) project.observaciones = [];
+  if (!project.observacionesParams || typeof project.observacionesParams !== 'object') project.observacionesParams = { horasDia: 10, diasMes: 26 };
+  const params = project.observacionesParams;
+  const obs = project.observaciones;
+  const r = Engine.resumenObservaciones(obs, params, project);
+
+  // helper de chips (reutiliza el look segmentado btn--seg)
+  const chipGroup = (opciones, actual, onPick) => UI.el('div', { class: 'chips' }, opciones.map(o =>
+    UI.el('button', { class: 'btn btn--seg' + (o.clave === actual ? ' activa' : ''),
+      onclick: () => { onPick(o.clave); App.guardarDebounced(); App.refrescarTab(); } }, o.etiqueta)));
+
+  // --- Tarjeta de contraste (neutra: informa, no juzga bueno/malo) ---
+  const cab = UI.el('div', { class: 'card' });
+  const sem = UI.el('div', { class: 'semaforo semaforo--neutro' });
+  if (r.fiabilidad === 'sin_datos') {
+    sem.appendChild(UI.el('div', null, [
+      UI.el('div', { class: 'kpi' }, 'Aún sin visitas'),
+      UI.el('div', { class: 'muted' }, 'Añade una visita cuando vayas al local.')
+    ]));
+  } else {
+    const desv = r.desviacionPct == null ? null
+      : (r.desviacionPct >= 0 ? '+' : '') + Math.round(r.desviacionPct * 100) + ' %';
+    const linea = r.n + ' visita' + (r.n === 1 ? '' : 's') + ' · media ' + Math.round(r.mediaEurHora) + ' €/h'
+      + (r.mesMedioDatos ? ' · tu mes medio ' + UI.eur(r.mesMedioDatos) : '')
+      + (desv ? ' → ' + desv : '');
+    sem.appendChild(UI.el('div', null, [
+      UI.el('div', { class: 'kpi' }, '≈ ' + UI.eur(r.cajaMesObs) + '/mes observado'),
+      UI.el('div', { class: 'muted' }, linea)
+    ]));
+  }
+  cab.appendChild(sem);
+  if (r.fiabilidad === 'baja') {
+    cab.appendChild(UI.el('div', { class: 'microayuda' },
+      'Pocas visitas o poco variadas: estimación orientativa. Visita en franjas distintas (mañana/tarde, finde/laborable) para afinar.'));
+  }
+  cab.appendChild(UI.el('div', { class: 'grid-2' }, [
+    UI.campo(project, 'Horas de apertura/día', params, 'horasDia', 'number', null, '10', true),
+    UI.campo(project, 'Días abiertos/mes', params, 'diasMes', 'number', null, '26', true)
+  ]));
+  cont.appendChild(cab);
+
+  // --- Lista de fichas ---
+  obs.forEach((f) => {
+    const eh = Engine.eurHoraObs(f);
+    const card = UI.el('div', { class: 'card' });
+    const fecha = UI.el('input', { type: 'date', value: f.fecha || '',
+      oninput: (e) => { f.fecha = e.target.value; App.guardarDebounced(); App.refrescarTab(); } });
+    const badge = UI.el('span', { class: 'muted' }, eh != null ? (Math.round(eh) + ' €/h') : 'sin datos');
+    const del = UI.el('button', { class: 'btn btn--icono', onclick: () => {
+      project.observaciones = project.observaciones.filter(x => x.id !== f.id);
+      App.guardarDebounced(); App.refrescarTab();
+    } }, '🗑');
+    card.appendChild(UI.el('div', { class: 'obs-fila__top' }, [fecha, badge, del]));
+    card.appendChild(UI.el('div', { class: 'field' }, [UI.el('label', null, 'Franja'),
+      chipGroup(Templates.OBS_FRANJAS, f.franja, v => f.franja = v)]));
+    card.appendChild(UI.el('div', { class: 'field' }, [UI.el('label', null, 'Cómo lo estimas'),
+      chipGroup([{ clave: 'A', etiqueta: 'Contar gente' }, { clave: 'B', etiqueta: '€/hora a ojo' }], f.metodo || 'A', v => f.metodo = v)]));
+    if ((f.metodo || 'A') === 'A') {
+      card.appendChild(UI.el('div', { class: 'grid-3' }, [
+        UI.campo(project, 'Ventana (min)', f, 'ventanaMin', 'number', null, '30', true),
+        UI.campo(project, 'Personas / consumiciones', f, 'conteo', 'number', null, '18', true),
+        UI.campo(project, 'Ticket medio (€)', f, 'ticket', 'number', null, '6', true)
+      ]));
+    } else {
+      card.appendChild(UI.campo(project, '€/hora estimados', f, 'eurHora', 'number', null, '120', true));
+    }
+    card.appendChild(UI.campo(project, 'Notas', f, 'notas', 'text', null, 'lo que viste…'));
+    const det = UI.el('details', { class: 'mas-detalle' }, [UI.el('summary', null, 'Más detalle')]);
+    det.appendChild(UI.el('div', { class: 'field' }, [UI.el('label', null, 'Clima'),
+      chipGroup(Templates.OBS_CLIMA, f.clima, v => f.clima = v)]));
+    det.appendChild(UI.el('div', { class: 'field' }, [UI.el('label', null, 'Ocupación'),
+      chipGroup(Templates.OBS_OCUPACION, f.ocupacion, v => f.ocupacion = v)]));
+    det.appendChild(UI.campo(project, 'Precios observados', f, 'precios', 'text', null, 'caña 1,40 · café 1,30'));
+    card.appendChild(det);
+    cont.appendChild(card);
+  });
+
+  // --- Botón añadir ---
+  const add = UI.el('button', { class: 'btn btn--accent', onclick: () => {
+    project.observaciones.push({ id: Storage.nuevoId(), fecha: '', franja: 'mediodia', metodo: 'A' });
+    App.guardarDebounced(); App.refrescarTab();
+  } }, '+ Añadir visita');
+  cont.appendChild(UI.el('div', { class: 'obs-add' }, add));
+};
+
 if (typeof window !== 'undefined') window.UI = UI;
 
 </script>
@@ -1727,7 +1887,7 @@ if (typeof window !== 'undefined') window.UI = UI;
 'use strict';
 const Guia = {};
 Guia.paso = 0;
-Guia.PASOS = ['sector','facturacion','margen','merma','fijos','personal','sueldo','inversion','escenarios','zona','riesgos'];
+Guia.PASOS = ['sector','facturacion','margen','merma','fijos','personal','sueldo','inversion','escenarios','zona','observaciones','riesgos'];
 
 Guia.abrir = function () { Guia.paso = 0; App.modo = 'guia'; App.render(); };
 Guia.salir = function () { App.modo = 'proyecto'; App.tab = 'datos'; App.render(); };
@@ -1802,6 +1962,12 @@ Guia.render = function (project) {
     const contZona = UI.el('div');
     card.appendChild(contZona);
     UI.renderZona(project, contZona);
+  } else if (paso === 'observaciones') {
+    card.appendChild(UI.el('h2',null,'Lo que ves en el local'));
+    card.appendChild(UI.el('div',{class:'microayuda'},'Cuando visites el local (o la competencia), apunta aquí lo que observas. Lo comparamos con tu previsión. Puedes saltarlo y rellenarlo más adelante.'));
+    const contObs = UI.el('div');
+    card.appendChild(contObs);
+    UI.renderObservaciones(project, contObs);
   } else if (paso === 'riesgos') {
     card.appendChild(UI.el('h2',null,'Antes de abrir: valida lo importante'));
     card.appendChild(UI.el('div',{class:'microayuda'},'Marca lo que ya tienes comprobado. No afecta a los números: es tu checklist para no llevarte sustos al abrir.'));
@@ -1963,6 +2129,7 @@ App.renderTab = function () {
   const panel = document.getElementById('panel-tab');
   if (App.tab === 'escenarios') UI.renderEscenarios(p, panel);
   else if (App.tab === 'zona') UI.renderZona(p, panel);
+  else if (App.tab === 'campo') UI.renderObservaciones(p, panel);
   else if (App.tab === 'riesgos') UI.renderRiesgos(p, panel);
   else UI.renderDatos(p, panel);
 };
