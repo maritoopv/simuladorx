@@ -78,6 +78,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15
 .semaforo--verde{border-left:4px solid var(--green)}
 .semaforo--ambar{border-left:4px solid var(--amber)}
 .semaforo--rojo{border-left:4px solid var(--red)}
+.semaforo--neutro{border-left:4px solid var(--faint)}
 .kpi{font-size:26px;font-weight:600} .kpi--neg{color:var(--red)}
 
 /* ---- Calendario ---- */
@@ -178,6 +179,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15
 .lista-vacia__sub { font-size:14px; }
 .comp-selector { display:flex; flex-wrap:wrap; gap:8px 16px; margin:12px 0; }
 .comp-selector__item { display:flex; align-items:center; gap:6px; font-size:14px; cursor:pointer; }
+.zona-factor { padding:10px 0; border-bottom:1px solid var(--border); }
+.zona-factor:last-child { border-bottom:none; }
+.zona-factor__top { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+.zona-factor__top label { font-size:15px; }
+.zona-nota { font-size:14px; color:var(--muted); }
+.zona-factor input[type=range] { width:100%; margin:6px 0; }
+.zona-na { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); }
 
 </style>
 </head>
@@ -214,6 +222,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15
       <nav class="tabs" id="tabs">
         <button class="tab" data-tab="datos">Datos</button>
         <button class="tab" data-tab="escenarios">Escenarios</button>
+        <button class="tab" data-tab="zona">Zona</button>
         <button class="tab" data-tab="riesgos">Riesgos</button>
       </nav>
       <main id="panel-tab" class="panel-tab"></main>
@@ -245,7 +254,8 @@ Engine.proyectoVacio = function () {
     escenarios: { optimistaPct: 15, pesimistaPct: 20 },
     prosContras: { pros: '', contras: '' },
     costesOlvidadosMarcados: [],
-    riesgosMarcados: []
+    riesgosMarcados: [],
+    zona: { factores: {} }
   };
 };
 
@@ -567,6 +577,26 @@ Engine.ordenarProyectos = function (proyectos, modo) {
   return conDatos.concat(sinDatos);
 };
 
+Engine.veredictoZona = function (zona, catalogo) {
+  const cat = catalogo || [];
+  const factores = (zona && zona.factores) || {};
+  const valorados = [];
+  cat.forEach(f => {
+    const v = factores[f.clave];
+    if (typeof v === 'number' && v >= 1 && v <= 10) valorados.push({ clave:f.clave, etiqueta:f.etiqueta, nota:v });
+  });
+  const nTotal = cat.length;
+  const nValorados = valorados.length;
+  if (nValorados === 0) return { nTotal, nValorados:0, media:null, nivel:'sin_datos', color:'neutro', debilidades:[] };
+  const media = valorados.reduce((s, x) => s + x.nota, 0) / nValorados;
+  let nivel, color;
+  if (media >= 7) { nivel = 'fuerte'; color = 'verde'; }
+  else if (media >= 4) { nivel = 'media'; color = 'ambar'; }
+  else { nivel = 'peligrosa'; color = 'rojo'; }
+  const debilidades = valorados.filter(x => x.nota <= 4).sort((a, b) => a.nota - b.nota).slice(0, 3);
+  return { nTotal, nValorados, media, nivel, color, debilidades };
+};
+
 if (typeof module !== 'undefined' && module.exports) module.exports = Engine;
 if (typeof window !== 'undefined') window.Engine = Engine;
 
@@ -799,6 +829,23 @@ if (typeof window !== 'undefined') window.Engine = Engine;
       return (p && p.sectorOrigen) || 'generico';
     }
     return sectorId;
+  };
+
+  Templates.ZONA = function () {
+    return [
+      { clave:'paso_gente',       etiqueta:'Paso de gente',                 ayuda:'Peatones que pasan por delante.',                              destacado:true },
+      { clave:'aparcamiento',     etiqueta:'Aparcamiento',                  ayuda:'Facilidad para aparcar cerca.',                                destacado:true },
+      { clave:'visibilidad',      etiqueta:'Visibilidad del local',         ayuda:'Se ve bien desde la calle.',                                   destacado:true },
+      { clave:'competencia',      etiqueta:'Poca competencia cerca',        ayuda:'1 mucha competencia → 10 ninguna.',                            destacado:true },
+      { clave:'generadores',      etiqueta:'Generadores de movimiento',     ayuda:'Colegios, Concello, pabellón, oficinas… que atraen gente.',    destacado:true },
+      { clave:'poder_adquisitivo',etiqueta:'Poder adquisitivo de la zona',  ayuda:'Nivel de gasto de la gente del entorno.',                      destacado:true },
+      { clave:'terraza',          etiqueta:'Terraza exterior',              ayuda:'Posibilidad y calidad de terraza.',                            destacado:true },
+      { clave:'paso_coches',      etiqueta:'Paso de coches',                ayuda:'Tráfico rodado por delante.',                                  destacado:false },
+      { clave:'eventos',          etiqueta:'Eventos cercanos',              ayuda:'Mercados, fiestas, partidos… cerca.',                          destacado:false },
+      { clave:'turismo',          etiqueta:'Turismo / peregrinos',          ayuda:'Flujo de turistas o peregrinos.',                              destacado:false },
+      { clave:'acceso',           etiqueta:'Facilidad de acceso',           ayuda:'Lo fácil que es llegar (a pie, coche, transporte).',           destacado:false },
+      { clave:'clima',            etiqueta:'Independencia del clima',       ayuda:'1 depende mucho del clima → 10 nada.',                         destacado:false }
+    ];
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = Templates;
@@ -1619,6 +1666,60 @@ UI.renderComparador = function () {
   ]));
 };
 
+UI.renderZona = function (project, cont) {
+  cont = cont || document.getElementById('panel-tab'); cont.innerHTML = '';
+  if (!project.zona || typeof project.zona !== 'object') project.zona = { factores:{} };
+  if (!project.zona.factores) project.zona.factores = {};
+  const catalogo = Templates.ZONA();
+  const v = Engine.veredictoZona(project.zona, catalogo);
+  const TITULOS = { fuerte:'Zona fuerte', media:'Zona media', peligrosa:'Zona peligrosa', sin_datos:'Aún sin valorar' };
+
+  // Tarjeta de veredicto
+  const sub = v.nValorados + ' / ' + v.nTotal + ' valorados' + (v.media != null ? ' · media ' + v.media.toFixed(1) : '');
+  const cab = UI.el('div',{class:'card'},[
+    UI.el('div',{class:'semaforo semaforo--'+v.color},[
+      UI.el('div',null,[ UI.el('div',{class:'kpi'}, TITULOS[v.nivel]), UI.el('div',{class:'muted'}, sub) ])
+    ])
+  ]);
+  if (v.debilidades.length) {
+    cab.appendChild(UI.el('div',{class:'microayuda'},
+      'Lo que más debilita la zona: ' + v.debilidades.map(d => d.etiqueta + ' (' + d.nota + ')').join(' · ')));
+  }
+  cont.appendChild(cab);
+
+  // Fila por factor: deslizador 1-10 + "no aplica", estado "sin valorar" por defecto
+  const filaFactor = (f) => {
+    const val = project.zona.factores[f.clave];
+    const esNA = val === 'na';
+    const nota = (typeof val === 'number') ? val : null;
+    const valorTxt = UI.el('span',{class:'zona-nota'}, esNA ? 'No aplica' : (nota != null ? String(nota) : 'sin valorar'));
+    const slider = UI.el('input',{ type:'range', min:'1', max:'10', step:'1', value: nota != null ? nota : 5,
+      ...(esNA ? { disabled:'disabled' } : {}),
+      oninput:(e)=>{ project.zona.factores[f.clave] = parseInt(e.target.value, 10); App.guardarDebounced(); App.refrescarTab(); }
+    });
+    const na = UI.el('label',{class:'zona-na'},[
+      UI.el('input',{ type:'checkbox', ...(esNA ? { checked:'checked' } : {}), onchange:(e)=>{
+        if (e.target.checked) project.zona.factores[f.clave] = 'na';
+        else delete project.zona.factores[f.clave];
+        App.guardarDebounced(); App.refrescarTab();
+      }}),
+      UI.el('span',null,'No aplica')
+    ]);
+    return UI.el('div',{class:'zona-factor'},[
+      UI.el('div',{class:'zona-factor__top'},[ UI.el('label',null,f.etiqueta), valorTxt ]),
+      UI.el('div',{class:'microayuda'}, f.ayuda),
+      slider, na
+    ]);
+  };
+
+  const card = UI.el('div',{class:'card'},[UI.el('h2',null,'Valora la zona (1-10, opcional)')]);
+  catalogo.filter(f => f.destacado).forEach(f => card.appendChild(filaFactor(f)));
+  const det = UI.el('details',{class:'mas-detalle'},[UI.el('summary',null,'Más factores')]);
+  catalogo.filter(f => !f.destacado).forEach(f => det.appendChild(filaFactor(f)));
+  card.appendChild(det);
+  cont.appendChild(card);
+};
+
 if (typeof window !== 'undefined') window.UI = UI;
 
 </script>
@@ -1626,7 +1727,7 @@ if (typeof window !== 'undefined') window.UI = UI;
 'use strict';
 const Guia = {};
 Guia.paso = 0;
-Guia.PASOS = ['sector','facturacion','margen','merma','fijos','personal','sueldo','inversion','escenarios','riesgos'];
+Guia.PASOS = ['sector','facturacion','margen','merma','fijos','personal','sueldo','inversion','escenarios','zona','riesgos'];
 
 Guia.abrir = function () { Guia.paso = 0; App.modo = 'guia'; App.render(); };
 Guia.salir = function () { App.modo = 'proyecto'; App.tab = 'datos'; App.render(); };
@@ -1695,6 +1796,12 @@ Guia.render = function (project) {
       UI.campo(project,'Escenario optimista (+%)',project.escenarios,'optimistaPct'),
       UI.campo(project,'Escenario pesimista (−%)',project.escenarios,'pesimistaPct')
     ]));
+  } else if (paso === 'zona') {
+    card.appendChild(UI.el('h2',null,'¿Qué tal la ubicación?'));
+    card.appendChild(UI.el('div',{class:'microayuda'},'Valora la zona del 1 al 10 (lo que puedas). La ubicación puede cambiarlo todo.'));
+    const contZona = UI.el('div');
+    card.appendChild(contZona);
+    UI.renderZona(project, contZona);
   } else if (paso === 'riesgos') {
     card.appendChild(UI.el('h2',null,'Antes de abrir: valida lo importante'));
     card.appendChild(UI.el('div',{class:'microayuda'},'Marca lo que ya tienes comprobado. No afecta a los números: es tu checklist para no llevarte sustos al abrir.'));
@@ -1855,6 +1962,7 @@ App.renderTab = function () {
   const p = App.proyectoActivo();
   const panel = document.getElementById('panel-tab');
   if (App.tab === 'escenarios') UI.renderEscenarios(p, panel);
+  else if (App.tab === 'zona') UI.renderZona(p, panel);
   else if (App.tab === 'riesgos') UI.renderRiesgos(p, panel);
   else UI.renderDatos(p, panel);
 };
