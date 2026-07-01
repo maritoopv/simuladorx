@@ -263,7 +263,8 @@ Engine.proyectoVacio = function () {
     riesgosMarcados: [],
     zona: { factores: {} },
     observaciones: [],
-    observacionesParams: { horasDia: 10, diasMes: 26 }
+    observacionesParams: { horasDia: 10, diasMes: 26 },
+    refuerzos: []
   };
 };
 
@@ -291,9 +292,25 @@ Engine.costeEmpleado = function (emp, ssPct) {
   return { brutoAnual, ss: ssImporte, costeAnual, costeMes: costeAnual/12 };
 };
 
+Engine.costeRefuerzo = function (ref, ssPct) {
+  const r = ref || {};
+  const horas = Number(r.horasSemana) || 0;
+  const eur = Number(r.eurHora) || 0;
+  const semanas = Number(r.semanasAnio) || 0;
+  const ss = Number(ssPct) || 0;
+  const costeAnual = horas * eur * semanas * (1 + ss / 100);
+  return { costeAnual, costeMes: costeAnual / 12 };
+};
+
+Engine.costeRefuerzosMensual = function (project) {
+  const ssPct = Number(project && project.ssPct) || 0;
+  return ((project && project.refuerzos) || []).reduce((s, r) => s + Engine.costeRefuerzo(r, ssPct).costeMes, 0);
+};
+
 Engine.costePersonalMensual = function (project) {
   const ssPct = Number(project.ssPct) || 0;
-  return (project.empleados || []).reduce((s, e) => s + Engine.costeEmpleado(e, ssPct).costeMes, 0);
+  const empleados = (project.empleados || []).reduce((s, e) => s + Engine.costeEmpleado(e, ssPct).costeMes, 0);
+  return empleados + Engine.costeRefuerzosMensual(project);
 };
 
 Engine.costePersonalAnual = function (project) {
@@ -560,6 +577,11 @@ Engine.personalSobreVentas = function (project) {
   return { verano: ratio(f.mesBueno), invierno: ratio(f.mesMalo) };
 };
 
+Engine.semanasTemporadaFuerte = function (project) {
+  const nBuenos = Number(project && project.facturacion && project.facturacion.nBuenos) || 0;
+  return Math.round(nBuenos * 52 / 12);
+};
+
 Engine.validacionRiesgos = function (project, catalogo) {
   const cat = Array.isArray(catalogo) ? catalogo : [];
   const ids = [];
@@ -762,6 +784,18 @@ if (typeof window !== 'undefined') window.Engine = Engine;
   Templates.salarioRefSector = function (sectorId) {
     const def = SECTOR_DEFS[sectorId];
     return (def && def.salarioRefMes) ? def.salarioRefMes : 1300;
+  };
+
+  Templates.REFUERZO_CUANDO = [
+    { clave: 'finde',            etiqueta: 'Finde todo el año', semanas: 52 },
+    { clave: 'verano',           etiqueta: 'Verano',            semanas: 13 },
+    { clave: 'temporada_fuerte', etiqueta: 'Temporada fuerte',  semanas: null },
+    { clave: 'eventos',          etiqueta: 'Eventos puntuales',  semanas: 8 },
+    { clave: 'personalizado',    etiqueta: 'Personalizado',      semanas: null }
+  ];
+
+  Templates.eurHoraRefSector = function (sectorId) {
+    return Math.round(Templates.salarioRefSector(sectorId) / 173.3);
   };
 
   Templates.costesOlvidados = function (sectorId) {
@@ -1217,6 +1251,55 @@ UI.bloquePersonal = function (project) {
     }},'Crear esos empleados con el sueldo de referencia')
   ]);
   card.appendChild(calc);
+
+  // Refuerzos (picos)
+  project.refuerzos = project.refuerzos || [];
+  const refCard = UI.el('div',{class:'card'},[
+    UI.el('h2',null,'Refuerzos (picos)'),
+    UI.el('div',{class:'microayuda'},'Personal extra por horas para finde, verano, temporada fuerte o eventos. Se suma al coste de personal.')
+  ]);
+  const CUANDO = Templates.REFUERZO_CUANDO;
+  project.refuerzos.forEach((r, idx) => {
+    const fila = UI.el('div',{class:'grid-2'},[
+      UI.campo(project,'Concepto',r,'concepto','text',null,'Camarero de finde'),
+      UI.el('div',{class:'field'},[UI.el('label',null,'Horas/semana'),
+        UI.el('input',{type:'number',value:r.horasSemana!=null?r.horasSemana:'',oninput:(e)=>{
+          r.horasSemana=parseFloat(e.target.value||'0');App.guardarDebounced();App.refrescarTab();
+        }})]),
+      UI.el('div',{class:'field'},[UI.el('label',null,'€/hora (bruto)'),
+        UI.el('input',{type:'number',value:r.eurHora!=null?r.eurHora:'',oninput:(e)=>{
+          r.eurHora=parseFloat(e.target.value||'0');App.guardarDebounced();App.refrescarTab();
+        }})]),
+      UI.el('div',{class:'field'},[UI.el('label',null,'Cuándo'),
+        UI.el('select',{onchange:(e)=>{
+          r.cuando=e.target.value;
+          const opt=CUANDO.find(c=>c.clave===e.target.value);
+          if(opt && opt.clave==='temporada_fuerte') r.semanasAnio=Engine.semanasTemporadaFuerte(project);
+          else if(opt && opt.semanas!=null) r.semanasAnio=opt.semanas;
+          App.guardarDebounced();App.refrescarTab();
+        }}, CUANDO.map(c=>UI.el('option',{value:c.clave,...(c.clave===r.cuando?{selected:'selected'}:{})}, c.etiqueta)))]),
+      UI.el('div',{class:'field'},[UI.el('label',null,'Semanas/año'),
+        UI.el('div',{style:'display:flex;gap:6px'},[
+          UI.el('input',{type:'number',value:r.semanasAnio!=null?r.semanasAnio:'',oninput:(e)=>{
+            r.semanasAnio=parseFloat(e.target.value||'0');App.guardarDebounced();App.refrescarTab();
+          }}),
+          UI.el('button',{class:'btn',title:'Quitar refuerzo',onclick:()=>{
+            project.refuerzos.splice(idx,1);App.guardarDebounced();App.refrescarTab();
+          }},'×')
+        ])])
+    ]);
+    refCard.appendChild(fila);
+    const cr = Engine.costeRefuerzo(r, Number(project.ssPct)||0);
+    refCard.appendChild(UI.el('div',{class:'microayuda'},
+      'Coste: '+UI.eur(cr.costeMes)+'/mes · '+UI.eur(cr.costeAnual)+'/año (SS incluida).'));
+  });
+  refCard.appendChild(UI.el('button',{class:'btn',onclick:()=>{
+    project.refuerzos.push({concepto:'',horasSemana:0,eurHora:Templates.eurHoraRefSector(project.sector),cuando:'finde',semanasAnio:52});
+    App.guardarDebounced();App.refrescarTab();
+  }},'+ Añadir refuerzo'));
+  const refMes = Engine.costeRefuerzosMensual(project);
+  refCard.appendChild(UI.el('div',{class:'kpi'+(refMes>0?'':' muted')},'Refuerzos: '+UI.eur(refMes)+'/mes'));
+  card.appendChild(refCard);
 
   // Totales
   const totalMes = Engine.costePersonalMensual(project);
