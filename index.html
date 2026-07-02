@@ -250,7 +250,7 @@ Engine.proyectoVacio = function () {
     nombre: 'Nuevo proyecto',
     sector: 'generico',
     facturacion: { mesBueno: 0, nBuenos: 0, mesNormal: 0, nNormales: 12, mesMalo: 0, nMalos: 0 },
-    margen: { modo: 'global', costeMercanciaPct: 0, productos: [] },
+    margen: { modo: 'global', costeMercanciaPct: 0, productos: [], categorias: [] },
     mermaPct: 0,
     costesFijos: [],
     inversionInicial: 0,
@@ -282,6 +282,15 @@ Engine.costeMercanciaPct = function (margen) {
       den += (Number(p.pesoPct) || 0);
     }
     return den > 0 ? num / den : 0;
+  }
+  if (margen.modo === 'categorias' && Array.isArray(margen.categorias) && margen.categorias.length) {
+    let num = 0, den = 0;
+    for (const c of margen.categorias) {
+      num += (Number(c.costeMercanciaPct) || 0) * (Number(c.pesoPct) || 0);
+      den += (Number(c.pesoPct) || 0);
+    }
+    if (den > 0) return num / den;
+    // sin pesos: cae al global (default prudente, mejor que un 0% = margen 100%)
   }
   return Number(margen.costeMercanciaPct) || 0;
 };
@@ -807,6 +816,10 @@ if (typeof window !== 'undefined') window.Engine = Engine;
       nombre:'Hostelería', mermaPct:4, ivaPct:10, impuestoPct:20,
       costeMercanciaPct:32, ticketMedio:9.5, unidadCliente:'tickets', diasAbiertosSemana:6,
       salarioRefMes:1400,
+      margenCategorias: [
+        { nombre:'Bebida', pesoPct:50, costeMercanciaPct:26 },
+        { nombre:'Comida', pesoPct:50, costeMercanciaPct:38 }
+      ],
       costesFijos:[
         { concepto:'Alquiler', tipo:'fijo' },
         { concepto:'Suministros (luz/agua/gas)', tipo:'semi' },
@@ -814,13 +827,17 @@ if (typeof window !== 'undefined') window.Engine = Engine;
         { concepto:'TPV / software', tipo:'fijo' },
         { concepto:'Mantenimiento maquinaria', tipo:'semi' }
       ],
-      benchmarks:{ costeMercanciaPct:[28,35], mermaPct:[3,5], alquilerSobreVentasPct:[8,12], paybackAnios:[2,4], personalSobreVentasPct:[25,35] },
+      benchmarks:{ costeMercanciaPct:[28,35], costeBebidaPct:[20,32], costeComidaPct:[30,45], mermaPct:[3,5], alquilerSobreVentasPct:[8,12], paybackAnios:[2,4], personalSobreVentasPct:[25,35] },
       costesOlvidados:['Merma e invitaciones','Impagos / mesas que se van','SS de autónomo','Pagas extra y vacaciones del personal','Mantenimiento de maquinaria','Tu propio sueldo','Recuerda: el IVA no es tuyo']
     },
     cafeteria: {
       nombre:'Cafetería / panadería', mermaPct:5, ivaPct:10, impuestoPct:20,
       costeMercanciaPct:30, ticketMedio:4.5, unidadCliente:'tickets', diasAbiertosSemana:6,
       salarioRefMes:1300,
+      margenCategorias: [
+        { nombre:'Bebida', pesoPct:60, costeMercanciaPct:24 },
+        { nombre:'Comida', pesoPct:40, costeMercanciaPct:39 }
+      ],
       costesFijos:[
         { concepto:'Alquiler', tipo:'fijo' },
         { concepto:'Suministros (luz/agua/gas)', tipo:'semi' },
@@ -828,7 +845,7 @@ if (typeof window !== 'undefined') window.Engine = Engine;
         { concepto:'TPV / software', tipo:'fijo' },
         { concepto:'Mantenimiento horno/maquinaria', tipo:'semi' }
       ],
-      benchmarks:{ costeMercanciaPct:[28,35], mermaPct:[4,8], alquilerSobreVentasPct:[8,12], paybackAnios:[2,4], personalSobreVentasPct:[25,35] },
+      benchmarks:{ costeMercanciaPct:[28,35], costeBebidaPct:[18,30], costeComidaPct:[30,45], mermaPct:[4,8], alquilerSobreVentasPct:[8,12], paybackAnios:[2,4], personalSobreVentasPct:[25,35] },
       costesOlvidados:['Producto fresco que sobra al cierre','Invitaciones / muestras','SS de autónomo','Pagas extra y vacaciones','Mantenimiento de maquinaria','Tu propio sueldo','Recuerda: el IVA no es tuyo']
     },
     comercio: {
@@ -921,7 +938,10 @@ if (typeof window !== 'undefined') window.Engine = Engine;
     base.mermaPct = def.mermaPct;
     base.ivaPct = def.ivaPct;
     base.impuestoPct = def.impuestoPct;
-    base.margen = { modo:'global', costeMercanciaPct: def.costeMercanciaPct, productos: [] };
+    base.margen = def.margenCategorias
+      ? { modo:'categorias', costeMercanciaPct: def.costeMercanciaPct, productos: [],
+          categorias: def.margenCategorias.map(c => Object.assign({}, c)) }
+      : { modo:'global', costeMercanciaPct: def.costeMercanciaPct, productos: [], categorias: [] };
     base.operativa = Object.assign({}, base.operativa, { ticketMedio: def.ticketMedio, diasAbiertosSemana: def.diasAbiertosSemana, unidadCliente: def.unidadCliente });
     base.costesFijos = def.costesFijos.map(c => ({ concepto: c.concepto, importe: 0, tipo: c.tipo }));
     return base;
@@ -1040,7 +1060,10 @@ if (typeof window !== 'undefined') window.Engine = Engine;
         mermaPct: proyecto.mermaPct,
         ivaPct: proyecto.ivaPct,
         impuestoPct: proyecto.impuestoPct,
-        margen: { modo:'global', costeMercanciaPct: (proyecto.margen && proyecto.margen.costeMercanciaPct) || 0, productos: [] },
+        margen: (proyecto.margen && proyecto.margen.modo === 'categorias')
+          ? { modo:'categorias', costeMercanciaPct: proyecto.margen.costeMercanciaPct || 0, productos: [],
+              categorias: (proyecto.margen.categorias || []).map(c => Object.assign({}, c)) }
+          : { modo:'global', costeMercanciaPct: (proyecto.margen && proyecto.margen.costeMercanciaPct) || 0, productos: [], categorias: [] },
         operativa: Object.assign({}, proyecto.operativa),
         costesFijos: (proyecto.costesFijos || []).map(c => ({ concepto: c.concepto, importe: 0, tipo: c.tipo || 'fijo' })),
         costesOlvidados: (proyecto.costesOlvidadosMarcados || []).slice()
@@ -1251,7 +1274,7 @@ UI.resumenFacturacion = function (project) {
 UI.bloqueMargen = function (project) {
   const m = project.margen;
   const sel = UI.el('select',{ onchange:(e)=>{ m.modo=e.target.value; App.guardarDebounced(); App.refrescarTab();} },
-    [['global','Margen global por %'],['productos','Tabla de productos']].map(([v,l])=>
+    [['global','Margen global por %'],['categorias','Por categorías (bebida / comida…)'],['productos','Tabla de productos']].map(([v,l])=>
       UI.el('option',{value:v,...(m.modo===v?{selected:'selected'}:{})},l)));
   const card = UI.el('div',{class:'card'},[UI.el('h2',null,'Margen / coste de lo que vendes'),
     UI.el('div',{class:'field'},[UI.el('label',null,'Modo'),sel])]);
@@ -1259,6 +1282,27 @@ UI.bloqueMargen = function (project) {
     card.appendChild(UI.campo(project,'Coste de mercancía/materiales (% de ventas)',m,'costeMercanciaPct','number','costeMercanciaPct','30'));
     const bM = Templates.benchmarks(project.sector);
     card.appendChild(UI.el('div',{class:'microayuda'}, 'Normal del sector: ' + bM.costeMercanciaPct[0] + '–' + bM.costeMercanciaPct[1] + '%'));
+  } else if (m.modo === 'categorias') {
+    (m.categorias = m.categorias || []).forEach((c,idx)=>{
+      const margenEq = 100 - (Number(c.costeMercanciaPct)||0);
+      card.appendChild(UI.el('div',{class:'grid-2'},[
+        UI.campo(project,'Categoría',c,'nombre','text'), UI.campo(project,'Peso en ventas (%)',c,'pesoPct'),
+        UI.campo(project,'Coste de mercancía (%)',c,'costeMercanciaPct'),
+        UI.el('div',{class:'muted'}, '→ margen '+margenEq.toFixed(0)+'%'),
+        UI.el('button',{class:'btn',onclick:()=>{ m.categorias.splice(idx,1); App.guardarDebounced(); App.refrescarTab();}},'Quitar')
+      ]));
+    });
+    card.appendChild(UI.el('button',{class:'btn',onclick:()=>{ m.categorias.push({nombre:'',pesoPct:0,costeMercanciaPct:0}); App.guardarDebounced(); App.refrescarTab();}},'+ Añadir categoría'));
+    const cmPond = Engine.costeMercanciaPct(m);
+    card.appendChild(UI.el('div',{class:'kpi'}, 'Coste medio ponderado: '+cmPond.toFixed(0)+'% (margen '+(100-cmPond).toFixed(0)+'%)'));
+    const bC = Templates.benchmarks(project.sector);
+    if (bC.costeBebidaPct && bC.costeComidaPct) {
+      card.appendChild(UI.el('div',{class:'microayuda'}, 'Normal del sector — bebida: '+bC.costeBebidaPct[0]+'–'+bC.costeBebidaPct[1]+'% de coste · comida: '+bC.costeComidaPct[0]+'–'+bC.costeComidaPct[1]+'%. El margen es lo que te queda: coste 26% = margen 74%.'));
+    }
+    const sumaPesos = m.categorias.reduce((s,c)=>s+(Number(c.pesoPct)||0),0);
+    if (m.categorias.length && Math.abs(sumaPesos-100) > 2) {
+      card.appendChild(UI.el('div',{class:'microayuda'}, 'Los pesos suman '+sumaPesos.toFixed(0)+'% — se reparten proporcionalmente, pero lo normal es que sumen 100.'));
+    }
   } else {
     (m.productos||[]).forEach((p,idx)=>{
       card.appendChild(UI.el('div',{class:'grid-2'},[
@@ -1932,6 +1976,7 @@ UI.renderSensibilidad = function (project, cont) {
     copia.costesFijos = copia.costesFijos.map(c=>({...c, importe:c.importe*estado.fijos/100}));
     if (copia.propietario) copia.propietario.sueldoMes = copia.propietario.sueldoMes; // el sueldo no escala con "fijos" salvo que se quiera
     if (copia.margen.modo==='global') copia.margen.costeMercanciaPct = copia.margen.costeMercanciaPct*estado.merc/100;
+    else if (copia.margen.modo==='categorias') (copia.margen.categorias||[]).forEach(c=>{ c.costeMercanciaPct = c.costeMercanciaPct*estado.merc/100; });
     const r = Engine.computeScenario(copia, 1);
     salida.textContent = 'Beneficio realista: ' + UI.eur(r.beneficioNeto) + '/año';
     salida.className = 'kpi' + (r.beneficioNeto<0?' kpi--neg':'');
@@ -1939,7 +1984,7 @@ UI.renderSensibilidad = function (project, cont) {
     const base = r.beneficioNeto;
     const varFact = (()=>{ const c2=JSON.parse(JSON.stringify(copia)); ['mesBueno','mesNormal','mesMalo'].forEach(k=>c2.facturacion[k]=c2.facturacion[k]*(100-10)/100); return Engine.computeScenario(c2,1).beneficioNeto; })();
     const varFijos = (()=>{ const c2=JSON.parse(JSON.stringify(copia)); c2.costesFijos=c2.costesFijos.map(cc=>({...cc,importe:cc.importe*(100+10)/100})); return Engine.computeScenario(c2,1).beneficioNeto; })();
-    const varMerc = (()=>{ const c2=JSON.parse(JSON.stringify(copia)); if(c2.margen.modo==='global') c2.margen.costeMercanciaPct=c2.margen.costeMercanciaPct*(100+10)/100; return Engine.computeScenario(c2,1).beneficioNeto; })();
+    const varMerc = (()=>{ const c2=JSON.parse(JSON.stringify(copia)); if(c2.margen.modo==='global') c2.margen.costeMercanciaPct=c2.margen.costeMercanciaPct*(100+10)/100; else if(c2.margen.modo==='categorias') (c2.margen.categorias||[]).forEach(c=>{ c.costeMercanciaPct=c.costeMercanciaPct*(100+10)/100; }); return Engine.computeScenario(c2,1).beneficioNeto; })();
     const impactos = [
       { nombre:'Facturación', delta: base - varFact },
       { nombre:'Costes fijos', delta: base - varFijos },
@@ -2204,7 +2249,7 @@ Guia.render = function (project) {
   } else if (paso === 'margen') {
     card.appendChild(UI.el('h2',null,'¿Cuánto te cuesta lo que vendes?'));
     card.appendChild(UI.el('div',{class:'microayuda'}, ayuda.costeMercanciaPct + ' Normal del sector: '+b.costeMercanciaPct[0]+'–'+b.costeMercanciaPct[1]+'%'));
-    card.appendChild(UI.campo(project,'Coste de mercancía (%)',project.margen,'costeMercanciaPct','number',null,'30'));
+    card.appendChild(UI.bloqueMargen(project));
   } else if (paso === 'merma') {
     card.appendChild(UI.el('h2',null,'Merma, regalos e impagos'));
     card.appendChild(UI.el('div',{class:'microayuda'}, ayuda.mermaPct + ' Normal del sector: '+b.mermaPct[0]+'–'+b.mermaPct[1]+'%'));
