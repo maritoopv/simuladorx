@@ -813,7 +813,7 @@ if (typeof window !== 'undefined') window.Engine = Engine;
 
   const SECTOR_DEFS = {
     hosteleria: {
-      nombre:'Hostelería', mermaPct:4, ivaPct:10, impuestoPct:20,
+      nombre:'Bar / hostelería', mermaPct:4, ivaPct:10, impuestoPct:20,
       costeMercanciaPct:32, ticketMedio:9.5, unidadCliente:'tickets', diasAbiertosSemana:6,
       salarioRefMes:1400,
       margenCategorias: [
@@ -905,6 +905,81 @@ if (typeof window !== 'undefined') window.Engine = Engine;
       ],
       benchmarks:{ costeMercanciaPct:[15,25], mermaPct:[0,2], alquilerSobreVentasPct:[5,10], paybackAnios:[3,5], personalSobreVentasPct:[20,35] },
       costesOlvidados:['Depreciación de equipos','% de ocupación realista (no llenas siempre)','Seguro del vehículo','Agua y luz variables','Mantenimiento de equipos','Tu propio sueldo']
+    },
+    compraventa: {
+      nombre:'Compraventa / segunda mano', mermaPct:3, ivaPct:21, impuestoPct:20,
+      costeMercanciaPct:50, ticketMedio:40, unidadCliente:'ventas', diasAbiertosSemana:6,
+      salarioRefMes:1350,
+      margenCategorias: [
+        { nombre:'Joyas / oro', pesoPct:30, costeMercanciaPct:60 },
+        { nombre:'Electrónica', pesoPct:40, costeMercanciaPct:50 },
+        { nombre:'Varios', pesoPct:30, costeMercanciaPct:40 }
+      ],
+      costesFijos:[
+        { concepto:'Alquiler', tipo:'fijo' },
+        { concepto:'Suministros', tipo:'semi' },
+        { concepto:'Gestoría', tipo:'fijo' },
+        { concepto:'Seguro (robo)', tipo:'fijo' },
+        { concepto:'Publicidad / anuncios online', tipo:'fijo' },
+        { concepto:'Comisiones datáfono y plataformas', tipo:'variable' },
+        { concepto:'TPV / software', tipo:'fijo' }
+      ],
+      benchmarks:{ costeMercanciaPct:[40,60], mermaPct:[1,5], alquilerSobreVentasPct:[8,15], paybackAnios:[1,3], personalSobreVentasPct:[10,20] },
+      costesOlvidados:['Stock parado que no rota','Falsificaciones o material robado (verificación)','REBU: el IVA va sobre el margen (pregunta a tu gestoría)','Robo y seguridad','Comisiones de plataformas online','Tu propio sueldo','Recuerda: el IVA no es tuyo']
+    },
+    heladeria: {
+      nombre:'Heladería', mermaPct:5, ivaPct:10, impuestoPct:20,
+      costeMercanciaPct:30, ticketMedio:4.5, unidadCliente:'tickets', diasAbiertosSemana:7,
+      salarioRefMes:1300,
+      margenCategorias: [
+        { nombre:'Helado', pesoPct:80, costeMercanciaPct:28 },
+        { nombre:'Otros (gofres, bebidas…)', pesoPct:20, costeMercanciaPct:38 }
+      ],
+      costesFijos:[
+        { concepto:'Alquiler', tipo:'fijo' },
+        { concepto:'Suministros (frío)', tipo:'semi' },
+        { concepto:'Gestoría', tipo:'fijo' },
+        { concepto:'Mantenimiento vitrinas / obrador', tipo:'semi' },
+        { concepto:'Tasa de terraza', tipo:'fijo' },
+        { concepto:'TPV / software', tipo:'fijo' }
+      ],
+      benchmarks:{ costeMercanciaPct:[25,35], mermaPct:[3,8], alquilerSobreVentasPct:[8,15], paybackAnios:[2,4], personalSobreVentasPct:[20,30] },
+      costesOlvidados:['Los meses muertos de invierno (el verano paga el año)','Merma de fresco al cierre','El frío enchufado todo el año','Tasa de terraza','Refuerzos de verano','Tu propio sueldo','Recuerda: el IVA no es tuyo']
+    },
+    restaurante: {
+      nombre:'Restaurante', mermaPct:5, ivaPct:10, impuestoPct:20,
+      costeMercanciaPct:33, ticketMedio:20, unidadCliente:'comensales', diasAbiertosSemana:6,
+      salarioRefMes:1500,
+      margenCategorias: [
+        { nombre:'Bebida', pesoPct:30, costeMercanciaPct:26 },
+        { nombre:'Comida', pesoPct:70, costeMercanciaPct:36 }
+      ],
+      costesFijos:[
+        { concepto:'Alquiler', tipo:'fijo' },
+        { concepto:'Suministros (luz/agua/gas)', tipo:'semi' },
+        { concepto:'Gestoría', tipo:'fijo' },
+        { concepto:'TPV / software', tipo:'fijo' },
+        { concepto:'Mantenimiento cocina y extracción', tipo:'semi' },
+        { concepto:'Lavandería / mantelería', tipo:'semi' }
+      ],
+      benchmarks:{ costeMercanciaPct:[30,38], costeBebidaPct:[20,32], costeComidaPct:[32,45], mermaPct:[3,6], alquilerSobreVentasPct:[8,12], paybackAnios:[2,4], personalSobreVentasPct:[30,40] },
+      costesOlvidados:['Personal de cocina aunque el comedor esté vacío','Merma e invitaciones','No-shows de reservas','Pagas extra y vacaciones','Mantenimiento de campana y extracción','Tu propio sueldo','Recuerda: el IVA no es tuyo']
+    },
+    alquiler: {
+      nombre:'Alquiler / renting de equipos', mermaPct:2, ivaPct:21, impuestoPct:20,
+      costeMercanciaPct:10, ticketMedio:35, unidadCliente:'alquileres', diasAbiertosSemana:6,
+      salarioRefMes:1400,
+      costesFijos:[
+        { concepto:'Cuotas financiación / renting de la flota', tipo:'fijo' },
+        { concepto:'Seguro de los equipos', tipo:'fijo' },
+        { concepto:'Almacén / local', tipo:'fijo' },
+        { concepto:'Mantenimiento y reparaciones', tipo:'semi' },
+        { concepto:'Transporte / combustible', tipo:'variable' },
+        { concepto:'Software de reservas', tipo:'fijo' },
+        { concepto:'Publicidad', tipo:'fijo' }
+      ],
+      benchmarks:{ costeMercanciaPct:[5,15], mermaPct:[1,4], alquilerSobreVentasPct:[5,12], paybackAnios:[3,6], personalSobreVentasPct:[15,30] },
+      costesOlvidados:['Depreciación y renovación de los equipos','Ocupación realista (no está todo alquilado siempre)','Roturas, robos y fianzas','Seguro de responsabilidad civil','Temporada baja','Tu propio sueldo','Recuerda: el IVA no es tuyo']
     }
   };
 
@@ -1043,6 +1118,30 @@ if (typeof window !== 'undefined') window.Engine = Engine;
         { id:'lav_mantenimiento', texto:'Mantenimiento de maquinaria de lavado' },
         { id:'lav_flota', texto:'Flota: seguros, ITV y mantenimiento' },
         { id:'lav_ocupacion', texto:'Ocupación realista de la flota' }
+      ]},
+      compraventa: { categoria:'Específico: Compraventa', items:[
+        { id:'cv_registro', texto:'Libro de registro policial y licencia de compraventa' },
+        { id:'cv_rotacion', texto:'Rotación realista del stock (¿cuánto tarda en venderse?)' },
+        { id:'cv_tasacion', texto:'Criterios de tasación y autenticidad definidos' },
+        { id:'cv_online', texto:'Canal online (Wallapop, eBay…) y sus comisiones' }
+      ]},
+      heladeria: { categoria:'Específico: Heladería', items:[
+        { id:'hel_temporada', texto:'¿La caja del verano paga el año entero? (haz el calendario)' },
+        { id:'hel_terraza', texto:'Terraza: licencia, tasa y orientación al sol' },
+        { id:'hel_obrador', texto:'Obrador propio o proveedor: normativa y costes claros' },
+        { id:'hel_paso', texto:'Zona de paso estival contrastada (no solo en agosto)' }
+      ]},
+      restaurante: { categoria:'Específico: Restaurante', items:[
+        { id:'rest_escandallo', texto:'Escandallos hechos (coste real por plato)' },
+        { id:'rest_humos', texto:'Extracción de humos e insonorización viables' },
+        { id:'rest_cocina', texto:'Personal de cocina disponible (y su coste real)' },
+        { id:'rest_reservas', texto:'Reservas: sistema y política de no-shows' }
+      ]},
+      alquiler: { categoria:'Específico: Alquiler / renting', items:[
+        { id:'alq_ocupacion', texto:'Ocupación realista contrastada (¿cuántos días al mes se alquila?)' },
+        { id:'alq_cuotas', texto:'Las cuotas de la flota se pagan aunque no alquiles' },
+        { id:'alq_seguro', texto:'Seguros y responsabilidad por daños claros' },
+        { id:'alq_renovacion', texto:'Plan de renovación / depreciación de equipos' }
       ]}
     };
     const sec = extras[sectorId];
