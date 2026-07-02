@@ -192,6 +192,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15
 .obs-fila__top input[type=date]{flex:1}
 .obs-add{margin-top:8px}
 
+.vf-dims{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.vf-dim{display:flex;align-items:baseline;gap:8px}
+.vf-dim .punto{flex:none;position:relative;top:1px}
+
 </style>
 </head>
 <body>
@@ -684,6 +688,106 @@ Engine.resumenObservaciones = function (observaciones, params, project) {
   else fiabilidad = 'baja';
   return { n, fechaDesde: fechas[0] || null, fechaHasta: fechas[fechas.length - 1] || null,
     mediaEurHora, cajaDia, cajaMesObs, mesMedioDatos, desviacionPct, fiabilidad, franjasDistintas };
+};
+
+// Veredicto final: combina dinero + zona + observado + personal + validación.
+// Prudencia: el dinero fija el punto de partida y las demás señales SOLO pueden
+// rebajarlo. Sin datos = neutro (no castiga por no usar una función opcional).
+Engine.veredictoFinal = function (project, opts) {
+  const o = opts || {};
+  const catZona = o.catalogoZona || [];
+  const catRiesgos = o.catalogoRiesgos || [];
+  const topePersonal = (o.topePersonal != null && isFinite(Number(o.topePersonal))) ? Number(o.topePersonal) : 35;
+
+  const a = Engine.analyze(project);
+  const zona = Engine.veredictoZona(project.zona, catZona);
+  const obs = Engine.resumenObservaciones(project.observaciones, project.observacionesParams, project);
+  const pv = Engine.personalSobreVentas(project);
+  const val = Engine.validacionRiesgos(project, catRiesgos);
+
+  const NIVELES = ['descarta', 'negocia', 'adelante'];
+  const START = { rojo: 'descarta', ambar: 'negocia', verde: 'adelante' };
+  let idx = NIVELES.indexOf(START[a.verdict.color] || 'descarta');
+
+  const rebajas = [], avisos = [], dimensiones = [];
+
+  // 💰 Dinero
+  dimensiones.push({ clave: 'dinero', etiqueta: 'Dinero', estado: a.verdict.color, texto: a.verdict.titulo + '.' });
+
+  // 📍 Zona
+  if (zona.nivel === 'sin_datos') {
+    dimensiones.push({ clave: 'zona', etiqueta: 'Zona', estado: 'neutro', texto: 'Sin datos — valora la ubicación en la pestaña Zona.' });
+  } else if (zona.nivel === 'fuerte') {
+    dimensiones.push({ clave: 'zona', etiqueta: 'Zona', estado: 'verde', texto: 'Zona fuerte (media ' + zona.media.toFixed(1) + ').' });
+  } else if (zona.nivel === 'media') {
+    dimensiones.push({ clave: 'zona', etiqueta: 'Zona', estado: 'ambar', texto: 'Zona media (media ' + zona.media.toFixed(1) + ').' });
+    avisos.push('La zona es mejorable (media ' + zona.media.toFixed(1) + '): revisa qué la debilita en su pestaña.');
+  } else {
+    dimensiones.push({ clave: 'zona', etiqueta: 'Zona', estado: 'rojo', texto: 'Zona peligrosa (media ' + zona.media.toFixed(1) + ').' });
+    rebajas.push('Zona peligrosa (media ' + zona.media.toFixed(1) + '): la ubicación puede hundir la previsión.');
+    idx--;
+  }
+
+  // 👀 Observado
+  if (obs.fiabilidad === 'sin_datos') {
+    dimensiones.push({ clave: 'observado', etiqueta: 'Observado', estado: 'neutro', texto: 'Sin datos — apunta visitas reales en la pestaña Campo.' });
+  } else {
+    const muyAbajo = obs.desviacionPct != null && obs.desviacionPct <= -0.20;
+    const desvTxt = obs.desviacionPct != null
+      ? ((obs.desviacionPct >= 0 ? '+' : '') + Math.round(obs.desviacionPct * 100) + ' %') : null;
+    if (obs.fiabilidad === 'baja') {
+      dimensiones.push({ clave: 'observado', etiqueta: 'Observado', estado: 'ambar',
+        texto: obs.n + ' visita(s), fiabilidad baja' + (desvTxt ? ' (' + desvTxt + ' vs tu previsión)' : '') + '.' });
+      avisos.push(muyAbajo
+        ? 'Lo observado apunta muy por debajo de tu previsión (' + desvTxt + '), pero con pocas visitas: visita más antes de fiarte.'
+        : 'Pocas visitas o poco variadas: la estimación de campo es orientativa.');
+    } else if (muyAbajo) {
+      dimensiones.push({ clave: 'observado', etiqueta: 'Observado', estado: 'rojo',
+        texto: 'Lo observado va ' + desvTxt + ' vs tu previsión (fiabilidad ' + obs.fiabilidad + ').' });
+      rebajas.push('Lo observado sobre el terreno (' + desvTxt + ') no sostiene tu previsión, que es la base del veredicto financiero.');
+      idx--;
+    } else {
+      dimensiones.push({ clave: 'observado', etiqueta: 'Observado', estado: 'verde',
+        texto: 'Lo observado encaja con tu previsión' + (desvTxt ? ' (' + desvTxt + ')' : '') + '.' });
+    }
+  }
+
+  // 👥 Personal
+  let ratioMax = Math.max(Number(pv.verano) || 0, Number(pv.invierno) || 0);
+  // Si personalSobreVentas devuelve 0 (sin mesBueno ni mesMalo), usa mesNormal como fallback
+  if (ratioMax <= 0) {
+    const costeMes = Engine.costePersonalMensual(project);
+    const mesNormal = Number((project.facturacion || {}).mesNormal) || 0;
+    if (costeMes > 0 && mesNormal > 0) {
+      ratioMax = costeMes / mesNormal * 100;
+    }
+  }
+  if (ratioMax <= 0) {
+    dimensiones.push({ clave: 'personal', etiqueta: 'Personal', estado: 'neutro', texto: 'Sin datos de personal o facturación.' });
+  } else if (ratioMax > topePersonal) {
+    dimensiones.push({ clave: 'personal', etiqueta: 'Personal', estado: 'ambar',
+      texto: 'El personal llega al ' + ratioMax.toFixed(0) + ' % de las ventas (tope orientativo ' + topePersonal + ' %).' });
+    avisos.push('El personal se come el ' + ratioMax.toFixed(0) + ' % de las ventas en el peor tramo (tope orientativo del sector: ' + topePersonal + ' %).');
+  } else {
+    dimensiones.push({ clave: 'personal', etiqueta: 'Personal', estado: 'verde',
+      texto: 'Personal dentro del tope del sector (' + ratioMax.toFixed(0) + ' % ≤ ' + topePersonal + ' %).' });
+  }
+
+  // ✅ Validación
+  if (val.total === 0 || val.hechos === 0) {
+    dimensiones.push({ clave: 'validacion', etiqueta: 'Validación', estado: 'neutro', texto: 'Checklist sin empezar — valida lo importante en la pestaña Riesgos.' });
+  } else if (val.pct >= 80) {
+    dimensiones.push({ clave: 'validacion', etiqueta: 'Validación', estado: 'verde', texto: val.hechos + '/' + val.total + ' validados. Listo.' });
+  } else {
+    dimensiones.push({ clave: 'validacion', etiqueta: 'Validación', estado: 'ambar', texto: val.hechos + '/' + val.total + ' validados.' });
+    avisos.push('Termina de validar el checklist antes de abrir (' + val.hechos + '/' + val.total + ').');
+  }
+
+  idx = Math.max(0, idx);
+  const nivel = NIVELES[idx];
+  const TITULOS = { adelante: 'Adelante', negocia: 'Negocia o revisa', descarta: 'Descártalo' };
+  const COLORES = { adelante: 'verde', negocia: 'ambar', descarta: 'rojo' };
+  return { nivel, titulo: TITULOS[nivel], color: COLORES[nivel], rebajas, avisos, dimensiones };
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = Engine;
@@ -1546,6 +1650,31 @@ UI.renderEscenarios = function (project, cont) {
     cont.appendChild(UI.el('div',{class:'microayuda'},
       'Los gastos variables y semi-fijos escalan con las ventas del escenario.'));
   }
+
+  // Veredicto final (combina todas las señales; solo lectura)
+  const vf = Engine.veredictoFinal(project, {
+    catalogoZona: Templates.ZONA(),
+    catalogoRiesgos: Templates.RIESGOS(Templates.sectorEfectivoRiesgos(project.sector, App.state.plantillas || [])),
+    topePersonal: ((Templates.benchmarks(project.sector) || {}).personalSobreVentasPct || [0, 35])[1]
+  });
+  const cardVF = UI.el('div', { class: 'card' }, [
+    UI.el('div', { class: 'semaforo semaforo--' + vf.color }, [
+      UI.el('div', null, [
+        UI.el('div', { class: 'kpi' }, 'Veredicto final: ' + vf.titulo),
+        UI.el('div', { class: 'muted' }, 'Combina dinero, zona, lo observado, personal y validación.')
+      ])
+    ])
+  ]);
+  vf.rebajas.forEach(r => cardVF.appendChild(UI.el('div', { class: 'reco reco--alto' }, '⬇ ' + r)));
+  const dims = UI.el('div', { class: 'vf-dims' });
+  vf.dimensiones.forEach(d => dims.appendChild(UI.el('div', { class: 'vf-dim' }, [
+    UI.el('span', { class: 'punto punto--' + d.estado }),
+    UI.el('strong', null, d.etiqueta + ':'),
+    UI.el('span', { class: 'muted' }, d.texto)
+  ])));
+  cardVF.appendChild(dims);
+  vf.avisos.forEach(t => cardVF.appendChild(UI.el('div', { class: 'microayuda' }, t)));
+  cont.appendChild(cardVF);
 
   // Veredicto (semáforo)
   cont.appendChild(UI.el('div',{class:'card'},[
