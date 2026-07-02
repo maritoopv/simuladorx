@@ -341,8 +341,19 @@ Engine.facturacionAnualBase = function (f) {
   return (f.mesBueno||0)*(f.nBuenos||0) + (f.mesNormal||0)*(f.nNormales||0) + (f.mesMalo||0)*(f.nMalos||0);
 };
 
-Engine.costesFijosMensuales = function (project) {
-  const lista = (project.costesFijos || []).reduce((s,c)=> s + (Number(c.importe)||0), 0);
+// Factor de escala de un gasto según su tipo en un escenario con multiplicador m.
+// Prudencia: tipo ausente/desconocido = 'fijo' (no baja en pesimista).
+Engine.escalaCoste = function (tipo, m) {
+  const mult = Number(m);
+  if (!isFinite(mult)) return 1;
+  if (tipo === 'variable') return mult;
+  if (tipo === 'semi') return 1 + (mult - 1) / 2;
+  return 1;
+};
+
+Engine.costesFijosMensuales = function (project, m) {
+  const lista = (project.costesFijos || []).reduce(
+    (s, c) => s + (Number(c.importe) || 0) * Engine.escalaCoste(c.tipo, m == null ? 1 : m), 0);
   const sueldo = project.propietario ? (Number(project.propietario.sueldoMes)||0) : 0;
   return lista + sueldo + Engine.costePersonalMensual(project);
 };
@@ -356,7 +367,7 @@ Engine.computeScenario = function (project, m) {
   const margenContribucionPct = 100 - cmPct - mermaPct;
   const margenBruto = facturacion - costeMercancia - merma;
   const margenBrutoPct = facturacion ? margenBruto/facturacion*100 : 0;
-  const costesFijosAnuales = Engine.costesFijosMensuales(project) * 12;
+  const costesFijosAnuales = Engine.costesFijosMensuales(project, m) * 12;
   const beneficioAntesImp = margenBruto - costesFijosAnuales;
   const impuestos = Math.max(0, beneficioAntesImp) * (Number(project.impuestoPct)||0)/100;
   const beneficioNeto = beneficioAntesImp - impuestos;
@@ -556,7 +567,7 @@ Engine.resultadoPorTemporada = function (project, m) {
   const cmPct = Engine.costeMercanciaPct(project.margen);
   const mermaPct = Number(project.mermaPct) || 0;
   const margenContribucionPct = 100 - cmPct - mermaPct;
-  const costesFijosMes = Engine.costesFijosMensuales(project);
+  const costesFijosMes = Engine.costesFijosMensuales(project, mult);
   const f = project.facturacion || {};
   const benefMes = (facturacionTipo) =>
     (Number(facturacionTipo) || 0) * mult * margenContribucionPct / 100 - costesFijosMes;
@@ -692,7 +703,13 @@ if (typeof window !== 'undefined') window.Engine = Engine;
       nombre:'Hostelería', mermaPct:4, ivaPct:10, impuestoPct:20,
       costeMercanciaPct:32, ticketMedio:9.5, unidadCliente:'tickets', diasAbiertosSemana:6,
       salarioRefMes:1400,
-      costesFijos:['Alquiler','Suministros (luz/agua/gas)','Gestoría','TPV / software','Mantenimiento maquinaria'],
+      costesFijos:[
+        { concepto:'Alquiler', tipo:'fijo' },
+        { concepto:'Suministros (luz/agua/gas)', tipo:'semi' },
+        { concepto:'Gestoría', tipo:'fijo' },
+        { concepto:'TPV / software', tipo:'fijo' },
+        { concepto:'Mantenimiento maquinaria', tipo:'semi' }
+      ],
       benchmarks:{ costeMercanciaPct:[28,35], mermaPct:[3,5], alquilerSobreVentasPct:[8,12], paybackAnios:[2,4], personalSobreVentasPct:[25,35] },
       costesOlvidados:['Merma e invitaciones','Impagos / mesas que se van','SS de autónomo','Pagas extra y vacaciones del personal','Mantenimiento de maquinaria','Tu propio sueldo','Recuerda: el IVA no es tuyo']
     },
@@ -700,7 +717,13 @@ if (typeof window !== 'undefined') window.Engine = Engine;
       nombre:'Cafetería / panadería', mermaPct:5, ivaPct:10, impuestoPct:20,
       costeMercanciaPct:30, ticketMedio:4.5, unidadCliente:'tickets', diasAbiertosSemana:6,
       salarioRefMes:1300,
-      costesFijos:['Alquiler','Suministros (luz/agua/gas)','Gestoría','TPV / software','Mantenimiento horno/maquinaria'],
+      costesFijos:[
+        { concepto:'Alquiler', tipo:'fijo' },
+        { concepto:'Suministros (luz/agua/gas)', tipo:'semi' },
+        { concepto:'Gestoría', tipo:'fijo' },
+        { concepto:'TPV / software', tipo:'fijo' },
+        { concepto:'Mantenimiento horno/maquinaria', tipo:'semi' }
+      ],
       benchmarks:{ costeMercanciaPct:[28,35], mermaPct:[4,8], alquilerSobreVentasPct:[8,12], paybackAnios:[2,4], personalSobreVentasPct:[25,35] },
       costesOlvidados:['Producto fresco que sobra al cierre','Invitaciones / muestras','SS de autónomo','Pagas extra y vacaciones','Mantenimiento de maquinaria','Tu propio sueldo','Recuerda: el IVA no es tuyo']
     },
@@ -708,7 +731,14 @@ if (typeof window !== 'undefined') window.Engine = Engine;
       nombre:'Comercio / tienda', mermaPct:2, ivaPct:21, impuestoPct:20,
       costeMercanciaPct:55, ticketMedio:25, unidadCliente:'tickets', diasAbiertosSemana:6,
       salarioRefMes:1350,
-      costesFijos:['Alquiler','Suministros','Gestoría','Comisiones datáfono','Seguro local','Marketing'],
+      costesFijos:[
+        { concepto:'Alquiler', tipo:'fijo' },
+        { concepto:'Suministros', tipo:'semi' },
+        { concepto:'Gestoría', tipo:'fijo' },
+        { concepto:'Comisiones datáfono', tipo:'variable' },
+        { concepto:'Seguro local', tipo:'fijo' },
+        { concepto:'Marketing', tipo:'fijo' }
+      ],
       benchmarks:{ costeMercanciaPct:[50,65], mermaPct:[1,3], alquilerSobreVentasPct:[8,15], paybackAnios:[2,4], personalSobreVentasPct:[10,18] },
       costesOlvidados:['Stock parado o caducado','Robo / mermas','Comisiones del datáfono','Devoluciones','SS de autónomo','Tu propio sueldo','Recuerda: el IVA no es tuyo']
     },
@@ -716,7 +746,13 @@ if (typeof window !== 'undefined') window.Engine = Engine;
       nombre:'Peluquería / estética', mermaPct:1, ivaPct:21, impuestoPct:20,
       costeMercanciaPct:12, ticketMedio:25, unidadCliente:'servicios', diasAbiertosSemana:6,
       salarioRefMes:1300,
-      costesFijos:['Alquiler','Suministros','Gestoría','Productos','Seguro'],
+      costesFijos:[
+        { concepto:'Alquiler', tipo:'fijo' },
+        { concepto:'Suministros', tipo:'semi' },
+        { concepto:'Gestoría', tipo:'fijo' },
+        { concepto:'Productos', tipo:'variable' },
+        { concepto:'Seguro', tipo:'fijo' }
+      ],
       benchmarks:{ costeMercanciaPct:[8,18], mermaPct:[0,2], alquilerSobreVentasPct:[8,15], paybackAnios:[2,4], personalSobreVentasPct:[30,45] },
       costesOlvidados:['Citas perdidas (no-shows)','Formación','Productos de reventa','SS de autónomo','Tu propio tiempo en la silla','Tu propio sueldo','Recuerda: el IVA no es tuyo']
     },
@@ -724,7 +760,13 @@ if (typeof window !== 'undefined') window.Engine = Engine;
       nombre:'Servicios / autónomo', mermaPct:0, ivaPct:21, impuestoPct:20,
       costeMercanciaPct:5, ticketMedio:0, unidadCliente:'clientes', diasAbiertosSemana:5,
       salarioRefMes:1600,
-      costesFijos:['Cuota de autónomo','Gestoría','Software / herramientas','Teléfono / Internet','Seguro RC'],
+      costesFijos:[
+        { concepto:'Cuota de autónomo', tipo:'fijo' },
+        { concepto:'Gestoría', tipo:'fijo' },
+        { concepto:'Software / herramientas', tipo:'fijo' },
+        { concepto:'Teléfono / Internet', tipo:'fijo' },
+        { concepto:'Seguro RC', tipo:'fijo' }
+      ],
       benchmarks:{ costeMercanciaPct:[0,10], mermaPct:[0,2], alquilerSobreVentasPct:[0,8], paybackAnios:[0,2], personalSobreVentasPct:[0,40] },
       costesOlvidados:['Cuota de autónomo','Tiempo no facturable (admin, captación)','Vacaciones sin ingresos','Impagos de clientes','IRPF','Tu "sueldo" real','Recuerda: el IVA no es tuyo']
     },
@@ -732,7 +774,14 @@ if (typeof window !== 'undefined') window.Engine = Engine;
       nombre:'Lavado + Renting', mermaPct:1, ivaPct:21, impuestoPct:20,
       costeMercanciaPct:20, ticketMedio:12, unidadCliente:'coches', diasAbiertosSemana:6,
       salarioRefMes:1300,
-      costesFijos:['Cuota renting furgoneta','Seguro vehículo','Agua','Luz','Productos químicos','Mantenimiento equipos'],
+      costesFijos:[
+        { concepto:'Cuota renting furgoneta', tipo:'fijo' },
+        { concepto:'Seguro vehículo', tipo:'fijo' },
+        { concepto:'Agua', tipo:'variable' },
+        { concepto:'Luz', tipo:'variable' },
+        { concepto:'Productos químicos', tipo:'variable' },
+        { concepto:'Mantenimiento equipos', tipo:'semi' }
+      ],
       benchmarks:{ costeMercanciaPct:[15,25], mermaPct:[0,2], alquilerSobreVentasPct:[5,10], paybackAnios:[3,5], personalSobreVentasPct:[20,35] },
       costesOlvidados:['Depreciación de equipos','% de ocupación realista (no llenas siempre)','Seguro del vehículo','Agua y luz variables','Mantenimiento de equipos','Tu propio sueldo']
     }
@@ -770,7 +819,7 @@ if (typeof window !== 'undefined') window.Engine = Engine;
     base.impuestoPct = def.impuestoPct;
     base.margen = { modo:'global', costeMercanciaPct: def.costeMercanciaPct, productos: [] };
     base.operativa = Object.assign({}, base.operativa, { ticketMedio: def.ticketMedio, diasAbiertosSemana: def.diasAbiertosSemana, unidadCliente: def.unidadCliente });
-    base.costesFijos = def.costesFijos.map(concepto => ({ concepto, importe: 0 }));
+    base.costesFijos = def.costesFijos.map(c => ({ concepto: c.concepto, importe: 0, tipo: c.tipo }));
     return base;
   };
 
@@ -889,7 +938,7 @@ if (typeof window !== 'undefined') window.Engine = Engine;
         impuestoPct: proyecto.impuestoPct,
         margen: { modo:'global', costeMercanciaPct: (proyecto.margen && proyecto.margen.costeMercanciaPct) || 0, productos: [] },
         operativa: Object.assign({}, proyecto.operativa),
-        costesFijos: (proyecto.costesFijos || []).map(c => ({ concepto: c.concepto, importe: 0 })),
+        costesFijos: (proyecto.costesFijos || []).map(c => ({ concepto: c.concepto, importe: 0, tipo: c.tipo || 'fijo' })),
         costesOlvidados: (proyecto.costesOlvidadosMarcados || []).slice()
       }
     };
@@ -905,7 +954,7 @@ if (typeof window !== 'undefined') window.Engine = Engine;
     if (d.impuestoPct != null) base.impuestoPct = d.impuestoPct;
     if (d.margen) base.margen = Object.assign({ modo:'global', costeMercanciaPct:0, productos:[] }, d.margen);
     if (d.operativa) base.operativa = Object.assign({}, base.operativa, d.operativa);
-    if (Array.isArray(d.costesFijos)) base.costesFijos = d.costesFijos.map(c => ({ concepto:c.concepto, importe: c.importe || 0 }));
+    if (Array.isArray(d.costesFijos)) base.costesFijos = d.costesFijos.map(c => ({ concepto:c.concepto, importe: c.importe || 0, tipo: c.tipo || 'fijo' }));
     return base;
   };
 
@@ -1121,17 +1170,25 @@ UI.bloqueMargen = function (project) {
 
 UI.bloqueCostesFijos = function (project) {
   const card = UI.el('div',{class:'card'},[UI.el('h2',null,'Costes fijos (€/mes)')]);
+  card.appendChild(UI.el('div',{class:'microayuda'},
+    'Fijo: no cambia si vendes menos. Variable: sube y baja con las ventas. Semi: mitad y mitad (luz, agua…). Afecta a los escenarios, no al caso base.'));
+  const TIPOS = [['fijo','F'],['variable','V'],['semi','S']];
   project.costesFijos.forEach((c,idx)=>{
+    const chips = UI.el('div',{class:'chips'}, TIPOS.map(([val,lab]) =>
+      UI.el('button',{class:'btn btn--seg'+((c.tipo||'fijo')===val?' activa':''),
+        title: val==='fijo'?'Fijo':val==='variable'?'Variable':'Semi-fijo',
+        onclick:()=>{ c.tipo=val; App.guardarDebounced(); App.refrescarTab(); }}, lab)));
     card.appendChild(UI.el('div',{class:'grid-2'},[
       UI.campo(project,'Concepto',c,'concepto','text'),
       UI.el('div',{class:'field'},[UI.el('label',null,'€/mes'),
-        UI.el('div',{style:'display:flex;gap:6px'},[
+        UI.el('div',{style:'display:flex;gap:6px;align-items:center'},[
           UI.el('input',{type:'number',value:c.importe,oninput:(e)=>{c.importe=parseFloat(e.target.value||'0');App.guardarDebounced();}}),
+          chips,
           UI.el('button',{class:'btn',onclick:()=>{project.costesFijos.splice(idx,1);App.guardarDebounced();App.refrescarTab();}},'×')
         ])])
     ]));
   });
-  card.appendChild(UI.el('button',{class:'btn',onclick:()=>{project.costesFijos.push({concepto:'',importe:0});App.guardarDebounced();App.refrescarTab();}},'+ Añadir coste fijo'));
+  card.appendChild(UI.el('button',{class:'btn',onclick:()=>{project.costesFijos.push({concepto:'',importe:0,tipo:'fijo'});App.guardarDebounced();App.refrescarTab();}},'+ Añadir coste fijo'));
   return card;
 };
 
@@ -1482,6 +1539,13 @@ UI.renderEscenarios = function (project, cont) {
   cont.appendChild(UI.el('div',{class:'segmented'}, UI.ESCENARIOS.map(([val,lab]) =>
     UI.el('button',{class:'seg'+(sel===val?' seg--activa':''),onclick:()=>{ UI.escenarioSel=val; App.refrescarTab(); }}, lab)
   )));
+
+  // Nota: los gastos clasificados escalan con el escenario
+  const hayEscalables = (project.costesFijos||[]).some(c => c.tipo === 'variable' || c.tipo === 'semi');
+  if (sel !== 'base' && hayEscalables) {
+    cont.appendChild(UI.el('div',{class:'microayuda'},
+      'Los gastos variables y semi-fijos escalan con las ventas del escenario.'));
+  }
 
   // Veredicto (semáforo)
   cont.appendChild(UI.el('div',{class:'card'},[
