@@ -192,9 +192,31 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15
 .obs-fila__top input[type=date]{flex:1}
 .obs-add{margin-top:8px}
 
-.vf-dims{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+/* ---- Veredicto hero ---- */
+.vf-hero .semaforo{padding:22px 20px;margin-bottom:14px}
+.vf-hero__titulo{font-size:30px;font-weight:700;line-height:1.15}
+.vf-hero__motivo{font-size:15px;margin-top:6px}
+.vf-hero__sub{font-size:12px;margin-top:4px}
+.vf-dims{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;margin-top:12px}
 .vf-dim{display:flex;align-items:baseline;gap:8px}
+.vf-notas{margin-top:14px;display:flex;flex-direction:column;gap:6px}
+@media (max-width:700px){.vf-dims{grid-template-columns:1fr}.vf-hero__titulo{font-size:26px}}
 .vf-dim .punto{flex:none;position:relative;top:1px}
+
+/* ---- Gastos fijos (acordeón) ---- */
+.gasto{border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:var(--surface2);overflow:hidden}
+.gasto--abierto{border-color:var(--accent)}
+.gasto__cab{display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;border:0;background:none;
+  color:var(--text);font-family:inherit;font-size:15px;cursor:pointer;text-align:left}
+.gasto__cab:hover{background:var(--surface)}
+.gasto__nombre{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gasto__nombre.vacio{color:var(--faint);font-style:italic}
+.gasto__resumen{font-size:14px;color:var(--muted);white-space:nowrap}
+.gasto__resumen.vacio{color:var(--faint)}
+.gasto__chev{color:var(--faint);font-size:11px}
+.gasto__ficha{padding:8px 14px 12px;border-top:1px solid var(--border)}
+.gasto__acciones{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:4px 0 8px}
+.total-gastos{margin-top:10px;font-size:15px;font-weight:600}
 
 </style>
 </head>
@@ -230,10 +252,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15
       </header>
       <nav class="tabs" id="tabs">
         <button class="tab" data-tab="datos">Datos</button>
-        <button class="tab" data-tab="escenarios">Escenarios</button>
         <button class="tab" data-tab="zona">Zona</button>
         <button class="tab" data-tab="campo">Campo</button>
         <button class="tab" data-tab="riesgos">Riesgos</button>
+        <button class="tab" data-tab="escenarios">Resultado</button>
       </nav>
       <main id="panel-tab" class="panel-tab"></main>
     </section>
@@ -244,6 +266,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15
 const Engine = {};
 
 Engine.MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+// Parser tolerante para inputs de usuario: acepta coma decimal española.
+Engine.parseNum = function (v) {
+  if (typeof v === 'number') return isFinite(v) ? v : 0;
+  const n = parseFloat(String(v == null ? '' : v).trim().replace(',', '.'));
+  return isNaN(n) ? 0 : n;
+};
 
 Engine.proyectoVacio = function () {
   return {
@@ -822,10 +851,19 @@ if (typeof window !== 'undefined') window.Engine = Engine;
       ],
       costesFijos:[
         { concepto:'Alquiler', tipo:'fijo' },
-        { concepto:'Suministros (luz/agua/gas)', tipo:'semi' },
+        { concepto:'Cuota de autónomo', tipo:'fijo' },
         { concepto:'Gestoría', tipo:'fijo' },
+        { concepto:'Luz', tipo:'semi' },
+        { concepto:'Agua', tipo:'semi' },
+        { concepto:'Gas', tipo:'semi' },
+        { concepto:'Internet y teléfono', tipo:'fijo' },
+        { concepto:'Seguros', tipo:'fijo' },
         { concepto:'TPV / software', tipo:'fijo' },
-        { concepto:'Mantenimiento maquinaria', tipo:'semi' }
+        { concepto:'Limpieza', tipo:'fijo' },
+        { concepto:'Basuras y tasas municipales', tipo:'fijo' },
+        { concepto:'Prevención y obligaciones legales', tipo:'fijo' },
+        { concepto:'Mantenimiento maquinaria', tipo:'semi' },
+        { concepto:'Publicidad', tipo:'fijo' }
       ],
       benchmarks:{ costeMercanciaPct:[28,35], costeBebidaPct:[20,32], costeComidaPct:[30,45], mermaPct:[3,5], alquilerSobreVentasPct:[8,12], paybackAnios:[2,4], personalSobreVentasPct:[25,35] },
       costesOlvidados:['Merma e invitaciones','Impagos / mesas que se van','SS de autónomo','Pagas extra y vacaciones del personal','Mantenimiento de maquinaria','Tu propio sueldo','Recuerda: el IVA no es tuyo']
@@ -840,10 +878,19 @@ if (typeof window !== 'undefined') window.Engine = Engine;
       ],
       costesFijos:[
         { concepto:'Alquiler', tipo:'fijo' },
-        { concepto:'Suministros (luz/agua/gas)', tipo:'semi' },
+        { concepto:'Cuota de autónomo', tipo:'fijo' },
         { concepto:'Gestoría', tipo:'fijo' },
+        { concepto:'Luz', tipo:'semi' },
+        { concepto:'Agua', tipo:'semi' },
+        { concepto:'Gas', tipo:'semi' },
+        { concepto:'Internet y teléfono', tipo:'fijo' },
+        { concepto:'Seguros', tipo:'fijo' },
         { concepto:'TPV / software', tipo:'fijo' },
-        { concepto:'Mantenimiento horno/maquinaria', tipo:'semi' }
+        { concepto:'Limpieza', tipo:'fijo' },
+        { concepto:'Basuras y tasas municipales', tipo:'fijo' },
+        { concepto:'Prevención y obligaciones legales', tipo:'fijo' },
+        { concepto:'Mantenimiento horno/maquinaria', tipo:'semi' },
+        { concepto:'Publicidad', tipo:'fijo' }
       ],
       benchmarks:{ costeMercanciaPct:[28,35], costeBebidaPct:[18,30], costeComidaPct:[30,45], mermaPct:[4,8], alquilerSobreVentasPct:[8,12], paybackAnios:[2,4], personalSobreVentasPct:[25,35] },
       costesOlvidados:['Producto fresco que sobra al cierre','Invitaciones / muestras','SS de autónomo','Pagas extra y vacaciones','Mantenimiento de maquinaria','Tu propio sueldo','Recuerda: el IVA no es tuyo']
@@ -854,10 +901,17 @@ if (typeof window !== 'undefined') window.Engine = Engine;
       salarioRefMes:1350,
       costesFijos:[
         { concepto:'Alquiler', tipo:'fijo' },
-        { concepto:'Suministros', tipo:'semi' },
+        { concepto:'Cuota de autónomo', tipo:'fijo' },
         { concepto:'Gestoría', tipo:'fijo' },
-        { concepto:'Comisiones datáfono', tipo:'variable' },
+        { concepto:'Luz', tipo:'semi' },
+        { concepto:'Agua', tipo:'semi' },
+        { concepto:'Internet y teléfono', tipo:'fijo' },
         { concepto:'Seguro local', tipo:'fijo' },
+        { concepto:'Comisiones datáfono', tipo:'variable' },
+        { concepto:'TPV / software', tipo:'fijo' },
+        { concepto:'Limpieza', tipo:'fijo' },
+        { concepto:'Basuras y tasas municipales', tipo:'fijo' },
+        { concepto:'Prevención y obligaciones legales', tipo:'fijo' },
         { concepto:'Marketing', tipo:'fijo' }
       ],
       benchmarks:{ costeMercanciaPct:[50,65], mermaPct:[1,3], alquilerSobreVentasPct:[8,15], paybackAnios:[2,4], personalSobreVentasPct:[10,18] },
@@ -869,10 +923,18 @@ if (typeof window !== 'undefined') window.Engine = Engine;
       salarioRefMes:1300,
       costesFijos:[
         { concepto:'Alquiler', tipo:'fijo' },
-        { concepto:'Suministros', tipo:'semi' },
+        { concepto:'Cuota de autónomo', tipo:'fijo' },
         { concepto:'Gestoría', tipo:'fijo' },
+        { concepto:'Luz', tipo:'semi' },
+        { concepto:'Agua', tipo:'semi' },
+        { concepto:'Internet y teléfono', tipo:'fijo' },
+        { concepto:'Seguro', tipo:'fijo' },
         { concepto:'Productos', tipo:'variable' },
-        { concepto:'Seguro', tipo:'fijo' }
+        { concepto:'TPV / software', tipo:'fijo' },
+        { concepto:'Limpieza', tipo:'fijo' },
+        { concepto:'Basuras y tasas municipales', tipo:'fijo' },
+        { concepto:'Prevención y obligaciones legales', tipo:'fijo' },
+        { concepto:'Publicidad', tipo:'fijo' }
       ],
       benchmarks:{ costeMercanciaPct:[8,18], mermaPct:[0,2], alquilerSobreVentasPct:[8,15], paybackAnios:[2,4], personalSobreVentasPct:[30,45] },
       costesOlvidados:['Citas perdidas (no-shows)','Formación','Productos de reventa','SS de autónomo','Tu propio tiempo en la silla','Tu propio sueldo','Recuerda: el IVA no es tuyo']
@@ -886,7 +948,8 @@ if (typeof window !== 'undefined') window.Engine = Engine;
         { concepto:'Gestoría', tipo:'fijo' },
         { concepto:'Software / herramientas', tipo:'fijo' },
         { concepto:'Teléfono / Internet', tipo:'fijo' },
-        { concepto:'Seguro RC', tipo:'fijo' }
+        { concepto:'Seguro RC', tipo:'fijo' },
+        { concepto:'Publicidad', tipo:'fijo' }
       ],
       benchmarks:{ costeMercanciaPct:[0,10], mermaPct:[0,2], alquilerSobreVentasPct:[0,8], paybackAnios:[0,2], personalSobreVentasPct:[0,40] },
       costesOlvidados:['Cuota de autónomo','Tiempo no facturable (admin, captación)','Vacaciones sin ingresos','Impagos de clientes','IRPF','Tu "sueldo" real','Recuerda: el IVA no es tuyo']
@@ -897,11 +960,16 @@ if (typeof window !== 'undefined') window.Engine = Engine;
       salarioRefMes:1300,
       costesFijos:[
         { concepto:'Cuota renting furgoneta', tipo:'fijo' },
+        { concepto:'Cuota de autónomo', tipo:'fijo' },
         { concepto:'Seguro vehículo', tipo:'fijo' },
         { concepto:'Agua', tipo:'variable' },
         { concepto:'Luz', tipo:'variable' },
         { concepto:'Productos químicos', tipo:'variable' },
-        { concepto:'Mantenimiento equipos', tipo:'semi' }
+        { concepto:'Mantenimiento equipos', tipo:'semi' },
+        { concepto:'Gestoría', tipo:'fijo' },
+        { concepto:'Internet y teléfono', tipo:'fijo' },
+        { concepto:'Prevención y obligaciones legales', tipo:'fijo' },
+        { concepto:'Publicidad', tipo:'fijo' }
       ],
       benchmarks:{ costeMercanciaPct:[15,25], mermaPct:[0,2], alquilerSobreVentasPct:[5,10], paybackAnios:[3,5], personalSobreVentasPct:[20,35] },
       costesOlvidados:['Depreciación de equipos','% de ocupación realista (no llenas siempre)','Seguro del vehículo','Agua y luz variables','Mantenimiento de equipos','Tu propio sueldo']
@@ -917,12 +985,18 @@ if (typeof window !== 'undefined') window.Engine = Engine;
       ],
       costesFijos:[
         { concepto:'Alquiler', tipo:'fijo' },
-        { concepto:'Suministros', tipo:'semi' },
+        { concepto:'Cuota de autónomo', tipo:'fijo' },
         { concepto:'Gestoría', tipo:'fijo' },
+        { concepto:'Luz', tipo:'semi' },
+        { concepto:'Agua', tipo:'semi' },
+        { concepto:'Internet y teléfono', tipo:'fijo' },
         { concepto:'Seguro (robo)', tipo:'fijo' },
         { concepto:'Publicidad / anuncios online', tipo:'fijo' },
         { concepto:'Comisiones datáfono y plataformas', tipo:'variable' },
-        { concepto:'TPV / software', tipo:'fijo' }
+        { concepto:'TPV / software', tipo:'fijo' },
+        { concepto:'Limpieza', tipo:'fijo' },
+        { concepto:'Basuras y tasas municipales', tipo:'fijo' },
+        { concepto:'Prevención y obligaciones legales', tipo:'fijo' }
       ],
       benchmarks:{ costeMercanciaPct:[40,60], mermaPct:[1,5], alquilerSobreVentasPct:[8,15], paybackAnios:[1,3], personalSobreVentasPct:[10,20] },
       costesOlvidados:['Stock parado que no rota','Falsificaciones o material robado (verificación)','REBU: el IVA va sobre el margen (pregunta a tu gestoría)','Robo y seguridad','Comisiones de plataformas online','Tu propio sueldo','Recuerda: el IVA no es tuyo']
@@ -937,11 +1011,19 @@ if (typeof window !== 'undefined') window.Engine = Engine;
       ],
       costesFijos:[
         { concepto:'Alquiler', tipo:'fijo' },
-        { concepto:'Suministros (frío)', tipo:'semi' },
+        { concepto:'Cuota de autónomo', tipo:'fijo' },
         { concepto:'Gestoría', tipo:'fijo' },
+        { concepto:'Luz (frío todo el año)', tipo:'semi' },
+        { concepto:'Agua', tipo:'semi' },
+        { concepto:'Internet y teléfono', tipo:'fijo' },
+        { concepto:'Seguros', tipo:'fijo' },
         { concepto:'Mantenimiento vitrinas / obrador', tipo:'semi' },
         { concepto:'Tasa de terraza', tipo:'fijo' },
-        { concepto:'TPV / software', tipo:'fijo' }
+        { concepto:'TPV / software', tipo:'fijo' },
+        { concepto:'Limpieza', tipo:'fijo' },
+        { concepto:'Basuras y tasas municipales', tipo:'fijo' },
+        { concepto:'Prevención y obligaciones legales', tipo:'fijo' },
+        { concepto:'Publicidad', tipo:'fijo' }
       ],
       benchmarks:{ costeMercanciaPct:[25,35], mermaPct:[3,8], alquilerSobreVentasPct:[8,15], paybackAnios:[2,4], personalSobreVentasPct:[20,30] },
       costesOlvidados:['Los meses muertos de invierno (el verano paga el año)','Merma de fresco al cierre','El frío enchufado todo el año','Tasa de terraza','Refuerzos de verano','Tu propio sueldo','Recuerda: el IVA no es tuyo']
@@ -956,11 +1038,20 @@ if (typeof window !== 'undefined') window.Engine = Engine;
       ],
       costesFijos:[
         { concepto:'Alquiler', tipo:'fijo' },
-        { concepto:'Suministros (luz/agua/gas)', tipo:'semi' },
+        { concepto:'Cuota de autónomo', tipo:'fijo' },
         { concepto:'Gestoría', tipo:'fijo' },
+        { concepto:'Luz', tipo:'semi' },
+        { concepto:'Agua', tipo:'semi' },
+        { concepto:'Gas', tipo:'semi' },
+        { concepto:'Internet y teléfono', tipo:'fijo' },
+        { concepto:'Seguros', tipo:'fijo' },
         { concepto:'TPV / software', tipo:'fijo' },
         { concepto:'Mantenimiento cocina y extracción', tipo:'semi' },
-        { concepto:'Lavandería / mantelería', tipo:'semi' }
+        { concepto:'Lavandería / mantelería', tipo:'semi' },
+        { concepto:'Limpieza', tipo:'fijo' },
+        { concepto:'Basuras y tasas municipales', tipo:'fijo' },
+        { concepto:'Prevención y obligaciones legales', tipo:'fijo' },
+        { concepto:'Publicidad', tipo:'fijo' }
       ],
       benchmarks:{ costeMercanciaPct:[30,38], costeBebidaPct:[20,32], costeComidaPct:[32,45], mermaPct:[3,6], alquilerSobreVentasPct:[8,12], paybackAnios:[2,4], personalSobreVentasPct:[30,40] },
       costesOlvidados:['Personal de cocina aunque el comedor esté vacío','Merma e invitaciones','No-shows de reservas','Pagas extra y vacaciones','Mantenimiento de campana y extracción','Tu propio sueldo','Recuerda: el IVA no es tuyo']
@@ -971,11 +1062,15 @@ if (typeof window !== 'undefined') window.Engine = Engine;
       salarioRefMes:1400,
       costesFijos:[
         { concepto:'Cuotas financiación / renting de la flota', tipo:'fijo' },
+        { concepto:'Cuota de autónomo', tipo:'fijo' },
         { concepto:'Seguro de los equipos', tipo:'fijo' },
         { concepto:'Almacén / local', tipo:'fijo' },
         { concepto:'Mantenimiento y reparaciones', tipo:'semi' },
         { concepto:'Transporte / combustible', tipo:'variable' },
         { concepto:'Software de reservas', tipo:'fijo' },
+        { concepto:'Gestoría', tipo:'fijo' },
+        { concepto:'Internet y teléfono', tipo:'fijo' },
+        { concepto:'Prevención y obligaciones legales', tipo:'fijo' },
         { concepto:'Publicidad', tipo:'fijo' }
       ],
       benchmarks:{ costeMercanciaPct:[5,15], mermaPct:[1,4], alquilerSobreVentasPct:[5,12], paybackAnios:[3,6], personalSobreVentasPct:[15,30] },
@@ -1000,6 +1095,15 @@ if (typeof window !== 'undefined') window.Engine = Engine;
     ivaPct:'El IVA que repercutes. OJO: no es tuyo, lo ingresas a Hacienda.',
     ssPct:'% que pagas TÚ de Seguridad Social por cada empleado (a cargo de la empresa). Suele rondar el 31% sobre el bruto.',
     sueldoBrutoMes:'Sueldo BRUTO al mes de cada empleado (sin contar tu parte de Seguridad Social). Se pagan 14 veces al año.'
+  };
+
+  const AYUDA_GASTOS = {
+    'Cuota de autónomo':'La pagas cada mes aunque no vendas. Tarifa plana ~87 €/mes el primer año; después va por tramos según tus rendimientos (~230–590 €/mes, orientativo). Sube con el tiempo: no la olvides.',
+    'Prevención y obligaciones legales':'Prevención de riesgos, protocolos (acoso…), formación obligatoria, normativa nueva… Cada cierto tiempo aparece alguna: reserva un pequeño fijo mensual.',
+    'Seguros':'Local, responsabilidad civil, convenio… Pide presupuesto real: casi siempre se queda corto.',
+    'Basuras y tasas municipales':'Tasa de basuras, vados, terrazas… Pregunta en tu ayuntamiento: varía mucho por municipio.',
+    'Gestoría':'Nóminas, impuestos, altas y bajas. Casi nadie lo lleva solo.',
+    'Limpieza':'Aunque limpies tú, cuenta el producto y tu tiempo; si lo externalizas, es un fijo claro.'
   };
 
   Templates.SECTORES = Object.keys(SECTOR_DEFS).map(id => ({ id, nombre: SECTOR_DEFS[id].nombre }));
@@ -1149,6 +1253,7 @@ if (typeof window !== 'undefined') window.Engine = Engine;
   };
 
   Templates.ayudaCampos = function () { return AYUDA_CAMPOS; };
+  Templates.ayudaGastos = function () { return AYUDA_GASTOS; };
 
   Templates.plantillaDesdeProyecto = function (proyecto, nombre, id) {
     return {
@@ -1327,9 +1432,12 @@ UI.eur = n => (Math.round(n)||0).toLocaleString('es-ES') + ' €';
 UI.pct = n => (n||0).toFixed(1) + ' %';
 // helper: input numérico/texto que escribe en project[path] y refresca dashboard
 UI.campo = function (project, etiqueta, obj, clave, tipo, ayudaKey, ejemplo, recalc) {
-  const input = UI.el('input', { type: tipo || 'number', value: obj[clave] != null ? obj[clave] : '',
+  const esTexto = tipo === 'text';
+  const input = UI.el('input', { type: tipo || 'number',
+    ...(esTexto ? {} : { step:'any', inputmode:'decimal' }),
+    value: obj[clave] != null ? obj[clave] : '',
     oninput: (e) => {
-      obj[clave] = (tipo === 'text') ? e.target.value : parseFloat(e.target.value || '0');
+      obj[clave] = esTexto ? e.target.value : Engine.parseNum(e.target.value);
       App.guardarDebounced();
       if (recalc) App.refrescarTab();
     }});
@@ -1415,34 +1523,60 @@ UI.bloqueMargen = function (project) {
   return card;
 };
 
+UI.gastoAbierto = null;   // índice del gasto desplegado (persiste entre repintados)
+
 UI.bloqueCostesFijos = function (project) {
-  const card = UI.el('div',{class:'card'},[UI.el('h2',null,'Costes fijos (€/mes)')]);
+  const card = UI.el('div',{class:'card'},[UI.el('h2',null,'Gastos fijos (€/mes)')]);
   card.appendChild(UI.el('div',{class:'microayuda'},
-    'Fijo: no cambia si vendes menos. Variable: sube y baja con las ventas. Semi: mitad y mitad (luz, agua…). Afecta a los escenarios, no al caso base.'));
+    'Toca un gasto para poner su importe. Los que dejes a 0 no cuentan.'));
   const TIPOS = [['fijo','F'],['variable','V'],['semi','S']];
+  const ayudas = Templates.ayudaGastos();
   project.costesFijos.forEach((c,idx)=>{
-    const chips = UI.el('div',{class:'chips'}, TIPOS.map(([val,lab]) =>
-      UI.el('button',{class:'btn btn--seg'+((c.tipo||'fijo')===val?' activa':''),
-        title: val==='fijo'?'Fijo':val==='variable'?'Variable':'Semi-fijo',
-        onclick:()=>{ c.tipo=val; App.guardarDebounced(); App.refrescarTab(); }}, lab)));
-    card.appendChild(UI.el('div',{class:'grid-2'},[
-      UI.campo(project,'Concepto',c,'concepto','text'),
-      UI.el('div',{class:'field'},[UI.el('label',null,'€/mes'),
-        UI.el('div',{style:'display:flex;gap:6px;align-items:center'},[
-          UI.el('input',{type:'number',value:c.importe,oninput:(e)=>{c.importe=parseFloat(e.target.value||'0');App.guardarDebounced();}}),
-          chips,
-          UI.el('button',{class:'btn',onclick:()=>{project.costesFijos.splice(idx,1);App.guardarDebounced();App.refrescarTab();}},'×')
-        ])])
+    const abierto = UI.gastoAbierto === idx;
+    const imp = Number(c.importe)||0;
+    const fila = UI.el('div',{class:'gasto'+(abierto?' gasto--abierto':'')});
+    fila.appendChild(UI.el('button',{class:'gasto__cab',onclick:()=>{ UI.gastoAbierto = abierto ? null : idx; App.refrescarTab(); }},[
+      UI.el('span',{class:'gasto__nombre'+(c.concepto?'':' vacio')}, c.concepto || 'Sin nombre'),
+      UI.el('span',{class:'gasto__resumen'+(imp?'':' vacio')}, imp ? (UI.eur(imp)+'/mes') : '—'),
+      UI.el('span',{class:'gasto__chev'}, abierto ? '▲' : '▼')
     ]));
+    if (abierto) {
+      const chips = UI.el('div',{class:'chips'}, TIPOS.map(([val,lab]) =>
+        UI.el('button',{class:'btn btn--seg'+((c.tipo||'fijo')===val?' activa':''),
+          title: val==='fijo'?'Fijo':val==='variable'?'Variable':'Semi-fijo',
+          onclick:()=>{ c.tipo=val; App.guardarDebounced(); App.refrescarTab(); }}, lab)));
+      const ficha = UI.el('div',{class:'gasto__ficha'},[
+        UI.el('div',{class:'grid-2'},[
+          UI.campo(project,'Concepto',c,'concepto','text',null,null,true),
+          UI.campo(project,'€/mes',c,'importe','number',null,'0',true)
+        ]),
+        UI.el('div',{class:'gasto__acciones'},[
+          chips,
+          UI.el('button',{class:'btn',onclick:()=>{ project.costesFijos.splice(idx,1); UI.gastoAbierto=null; App.guardarDebounced(); App.refrescarTab(); }},'Quitar')
+        ]),
+        UI.el('div',{class:'microayuda'},
+          'Fijo: no cambia si vendes menos. Variable: sube y baja con las ventas. Semi: mitad y mitad (luz, agua…). Afecta a los escenarios, no al caso base.')
+      ]);
+      if (ayudas[c.concepto]) ficha.appendChild(UI.el('div',{class:'microayuda'}, '💡 ' + ayudas[c.concepto]));
+      fila.appendChild(ficha);
+    }
+    card.appendChild(fila);
   });
-  card.appendChild(UI.el('button',{class:'btn',onclick:()=>{project.costesFijos.push({concepto:'',importe:0,tipo:'fijo'});App.guardarDebounced();App.refrescarTab();}},'+ Añadir coste fijo'));
+  card.appendChild(UI.el('button',{class:'btn',onclick:()=>{
+    project.costesFijos.push({concepto:'',importe:0,tipo:'fijo'});
+    UI.gastoAbierto = project.costesFijos.length-1;
+    App.guardarDebounced(); App.refrescarTab();
+  }},'+ Añadir gasto personalizado'));
+  const totalLista = (project.costesFijos||[]).reduce((s,c)=> s + (Number(c.importe)||0), 0);
+  card.appendChild(UI.el('div',{class:'total-gastos'},
+    'Total: ' + UI.eur(totalLista) + '/mes'));
   return card;
 };
 
 UI.estimadorFacturacion = function (project) {
   const wrap = UI.el('div',{class:'estimador'});
   const st = { clientesDia: 0 };
-  const cli = UI.el('input',{type:'number',placeholder:'clientes/día',oninput:function(e){st.clientesDia=parseFloat(e.target.value||'0');}});
+  const cli = UI.el('input',{type:'number',step:'any',inputmode:'decimal',placeholder:'clientes/día',oninput:function(e){st.clientesDia=Engine.parseNum(e.target.value);}});
   const out = UI.el('span',{class:'muted'});
   const calc = function(){ const dias=(project.operativa.diasAbiertosSemana||6)*4.33; const v=Math.round(st.clientesDia*(project.operativa.ticketMedio||0)*dias); out.textContent = v? ('≈ '+v.toLocaleString('es-ES')+' €/mes'):''; return v; };
   cli.addEventListener('input', calc);
@@ -1457,7 +1591,7 @@ UI.estimadorInversion = function (project) {
   const wrap = UI.el('div',{class:'estimador'}); const vals = {};
   const out = UI.el('div',{class:'kpi'});
   const total = function(){ const t=Object.values(vals).reduce(function(s,n){return s+(n||0);},0); out.textContent = 'Total: '+Math.round(t).toLocaleString('es-ES')+' €'; return t; };
-  items.forEach(function(it){ wrap.appendChild(UI.el('div',{class:'field'},[UI.el('label',null,it), UI.el('input',{type:'number',placeholder:'€',oninput:function(e){vals[it]=parseFloat(e.target.value||'0');total();}})])); });
+  items.forEach(function(it){ wrap.appendChild(UI.el('div',{class:'field'},[UI.el('label',null,it), UI.el('input',{type:'number',step:'any',inputmode:'decimal',placeholder:'€',oninput:function(e){vals[it]=Engine.parseNum(e.target.value);total();}})])); });
   wrap.appendChild(out);
   wrap.appendChild(UI.el('button',{class:'btn',onclick:function(){ project.inversionInicial=Math.round(total()); App.guardarDebounced(); App.refrescarTab(); }},'Usar como inversión inicial'));
   return wrap;
@@ -1483,17 +1617,17 @@ UI.bloquePersonal = function (project) {
     const fila = UI.el('div',{class:'grid-2'},[
       UI.campo(project,'Puesto',emp,'puesto','text'),
       UI.el('div',{class:'field'},[UI.el('label',null,'Nº de personas'),
-        UI.el('input',{type:'number',value:emp.numero!=null?emp.numero:'',oninput:(e)=>{
-          emp.numero=parseFloat(e.target.value||'0');App.guardarDebounced();App.refrescarTab();
+        UI.el('input',{type:'number',step:'any',inputmode:'decimal',value:emp.numero!=null?emp.numero:'',oninput:(e)=>{
+          emp.numero=Engine.parseNum(e.target.value);App.guardarDebounced();App.refrescarTab();
         }})]),
       UI.el('div',{class:'field'},[UI.el('label',null,'Horas/semana'),
-        UI.el('input',{type:'number',value:emp.horasSemana!=null?emp.horasSemana:'',oninput:(e)=>{
-          emp.horasSemana=parseFloat(e.target.value||'0');App.guardarDebounced();App.refrescarTab();
+        UI.el('input',{type:'number',step:'any',inputmode:'decimal',value:emp.horasSemana!=null?emp.horasSemana:'',oninput:(e)=>{
+          emp.horasSemana=Engine.parseNum(e.target.value);App.guardarDebounced();App.refrescarTab();
         }})]),
       UI.el('div',{class:'field'},[UI.el('label',null,'Bruto €/mes'),
         UI.el('div',{style:'display:flex;gap:6px'},[
-          UI.el('input',{type:'number',value:emp.sueldoBrutoMes!=null?emp.sueldoBrutoMes:'',oninput:(e)=>{
-            emp.sueldoBrutoMes=parseFloat(e.target.value||'0');App.guardarDebounced();App.refrescarTab();
+          UI.el('input',{type:'number',step:'any',inputmode:'decimal',value:emp.sueldoBrutoMes!=null?emp.sueldoBrutoMes:'',oninput:(e)=>{
+            emp.sueldoBrutoMes=Engine.parseNum(e.target.value);App.guardarDebounced();App.refrescarTab();
           }}),
           UI.el('button',{class:'btn',title:'Quitar empleado',onclick:()=>{
             project.empleados.splice(idx,1);App.guardarDebounced();App.refrescarTab();
@@ -1534,16 +1668,16 @@ UI.bloquePersonal = function (project) {
     UI.el('div',{class:'microayuda'},'Horas que abres × días/semana × personas a la vez = horas a cubrir. Lo divide entre una jornada de 40h.'),
     UI.el('div',{class:'grid-2'},[
       UI.el('div',{class:'field'},[UI.el('label',null,'Horas abiertas/día'),
-        UI.el('input',{type:'number',placeholder:'10',value:o.horasAbiertasDia!=null?o.horasAbiertasDia:'',oninput:(e)=>{
-          o.horasAbiertasDia=parseFloat(e.target.value||'0');App.guardarDebounced();App.refrescarTab();
+        UI.el('input',{type:'number',step:'any',inputmode:'decimal',placeholder:'10',value:o.horasAbiertasDia!=null?o.horasAbiertasDia:'',oninput:(e)=>{
+          o.horasAbiertasDia=Engine.parseNum(e.target.value);App.guardarDebounced();App.refrescarTab();
         }})]),
       UI.el('div',{class:'field'},[UI.el('label',null,'Días abiertos/semana'),
-        UI.el('input',{type:'number',value:o.diasAbiertosSemana!=null?o.diasAbiertosSemana:'',oninput:(e)=>{
-          o.diasAbiertosSemana=parseFloat(e.target.value||'0');App.guardarDebounced();App.refrescarTab();
+        UI.el('input',{type:'number',step:'any',inputmode:'decimal',value:o.diasAbiertosSemana!=null?o.diasAbiertosSemana:'',oninput:(e)=>{
+          o.diasAbiertosSemana=Engine.parseNum(e.target.value);App.guardarDebounced();App.refrescarTab();
         }})]),
       UI.el('div',{class:'field'},[UI.el('label',null,'Personas a la vez'),
-        UI.el('input',{type:'number',placeholder:'2',value:o.personasSimultaneas!=null?o.personasSimultaneas:'',oninput:(e)=>{
-          o.personasSimultaneas=parseFloat(e.target.value||'0');App.guardarDebounced();App.refrescarTab();
+        UI.el('input',{type:'number',step:'any',inputmode:'decimal',placeholder:'2',value:o.personasSimultaneas!=null?o.personasSimultaneas:'',oninput:(e)=>{
+          o.personasSimultaneas=Engine.parseNum(e.target.value);App.guardarDebounced();App.refrescarTab();
         }})])
     ]),
     UI.el('div',{class:'kpi'}, cob.horasSemana+' h/semana a cubrir → '+cob.empleadosNecesarios+' empleados a jornada completa'),
@@ -1567,12 +1701,12 @@ UI.bloquePersonal = function (project) {
     const fila = UI.el('div',{class:'grid-2'},[
       UI.campo(project,'Concepto',r,'concepto','text',null,'Camarero de finde'),
       UI.el('div',{class:'field'},[UI.el('label',null,'Horas/semana'),
-        UI.el('input',{type:'number',value:r.horasSemana!=null?r.horasSemana:'',oninput:(e)=>{
-          r.horasSemana=parseFloat(e.target.value||'0');App.guardarDebounced();App.refrescarTab();
+        UI.el('input',{type:'number',step:'any',inputmode:'decimal',value:r.horasSemana!=null?r.horasSemana:'',oninput:(e)=>{
+          r.horasSemana=Engine.parseNum(e.target.value);App.guardarDebounced();App.refrescarTab();
         }})]),
       UI.el('div',{class:'field'},[UI.el('label',null,'€/hora (bruto)'),
-        UI.el('input',{type:'number',value:r.eurHora!=null?r.eurHora:'',oninput:(e)=>{
-          r.eurHora=parseFloat(e.target.value||'0');App.guardarDebounced();App.refrescarTab();
+        UI.el('input',{type:'number',step:'any',inputmode:'decimal',value:r.eurHora!=null?r.eurHora:'',oninput:(e)=>{
+          r.eurHora=Engine.parseNum(e.target.value);App.guardarDebounced();App.refrescarTab();
         }})]),
       UI.el('div',{class:'field'},[UI.el('label',null,'Cuándo'),
         UI.el('select',{onchange:(e)=>{
@@ -1584,8 +1718,8 @@ UI.bloquePersonal = function (project) {
         }}, CUANDO.map(c=>UI.el('option',{value:c.clave,...(c.clave===r.cuando?{selected:'selected'}:{})}, c.etiqueta)))]),
       UI.el('div',{class:'field'},[UI.el('label',null,'Semanas/año'),
         UI.el('div',{style:'display:flex;gap:6px'},[
-          UI.el('input',{type:'number',value:r.semanasAnio!=null?r.semanasAnio:'',oninput:(e)=>{
-            r.semanasAnio=parseFloat(e.target.value||'0');App.guardarDebounced();App.refrescarTab();
+          UI.el('input',{type:'number',step:'any',inputmode:'decimal',value:r.semanasAnio!=null?r.semanasAnio:'',oninput:(e)=>{
+            r.semanasAnio=Engine.parseNum(e.target.value);App.guardarDebounced();App.refrescarTab();
           }}),
           UI.el('button',{class:'btn',title:'Quitar refuerzo',onclick:()=>{
             project.refuerzos.splice(idx,1);App.guardarDebounced();App.refrescarTab();
@@ -1800,15 +1934,15 @@ UI.renderEscenarios = function (project, cont) {
     catalogoRiesgos: Templates.RIESGOS(Templates.sectorEfectivoRiesgos(project.sector, App.state.plantillas || [])),
     topePersonal: ((Templates.benchmarks(project.sector) || {}).personalSobreVentasPct || [0, 35])[1]
   });
-  const cardVF = UI.el('div', { class: 'card' }, [
+  const cardVF = UI.el('div', { class: 'card vf-hero' }, [
     UI.el('div', { class: 'semaforo semaforo--' + vf.color }, [
       UI.el('div', null, [
-        UI.el('div', { class: 'kpi' }, 'Veredicto final: ' + vf.titulo),
-        UI.el('div', { class: 'muted' }, 'Combina dinero, zona, lo observado, personal y validación.')
+        UI.el('div', { class: 'vf-hero__titulo' }, vf.titulo),
+        UI.el('div', { class: 'vf-hero__motivo' }, a.verdict.motivo),
+        UI.el('div', { class: 'muted vf-hero__sub' }, 'Combina dinero, zona, lo observado, personal y validación.')
       ])
     ])
   ]);
-  vf.rebajas.forEach(r => cardVF.appendChild(UI.el('div', { class: 'reco reco--alto' }, '⬇ ' + r)));
   const dims = UI.el('div', { class: 'vf-dims' });
   vf.dimensiones.forEach(d => dims.appendChild(UI.el('div', { class: 'vf-dim' }, [
     UI.el('span', { class: 'punto punto--' + d.estado }),
@@ -1816,16 +1950,13 @@ UI.renderEscenarios = function (project, cont) {
     UI.el('span', { class: 'muted' }, d.texto)
   ])));
   cardVF.appendChild(dims);
-  vf.avisos.forEach(t => cardVF.appendChild(UI.el('div', { class: 'microayuda' }, t)));
+  if (vf.rebajas.length || vf.avisos.length) {
+    const notas = UI.el('div', { class: 'vf-notas' });
+    vf.rebajas.forEach(r => notas.appendChild(UI.el('div', { class: 'reco reco--alto' }, '⬇ ' + r)));
+    vf.avisos.forEach(t => notas.appendChild(UI.el('div', { class: 'microayuda' }, t)));
+    cardVF.appendChild(notas);
+  }
   cont.appendChild(cardVF);
-
-  // Veredicto (semáforo)
-  cont.appendChild(UI.el('div',{class:'card'},[
-    UI.el('div',{class:'semaforo semaforo--'+a.verdict.color},[
-      UI.el('div',null,[ UI.el('div',{class:'kpi'}, a.verdict.titulo),
-        UI.el('div',null, a.verdict.motivo) ])
-    ])
-  ]));
 
   // Barras por temporada
   cont.appendChild(UI.barrasTemporada(temp));
@@ -1872,7 +2003,7 @@ UI.renderEscenarios = function (project, cont) {
   UI.renderSensibilidad(project, cont);
 
   // Más detalle (toda la analítica existente, plegada)
-  const det = UI.el('details',{class:'mas-detalle'},[UI.el('summary',null,'Más detalle')]);
+  const det = UI.el('details',{class:'mas-detalle', open:''},[UI.el('summary',null,'Más detalle')]);
   UI.renderDashboardCajaYRatios(project, a, det);
   UI.renderDashboardListas(project, a, det);
   cont.appendChild(det);
@@ -2092,11 +2223,13 @@ UI.renderSensibilidad = function (project, cont) {
     const masPeligrosa = impactos.reduce((a,b) => b.delta > a.delta ? b : a);
     peligro.textContent = 'La variable más peligrosa: ' + masPeligrosa.nombre;
   };
+  const fmtDelta = v => { const d = v - 100; return d === 0 ? '±0 %' : (d > 0 ? '+' : '−') + Math.abs(d) + ' %'; };
   const slider = (etq, clave) => {
-    const val = UI.el('span',{class:'muted'}, estado[clave]+'%');
-    const inp = UI.el('input',{type:'range',min:50,max:150,value:estado[clave],oninput:(e)=>{estado[clave]=parseInt(e.target.value,10);val.textContent=estado[clave]+'%';recalc();}});
+    const val = UI.el('span',{class:'muted'}, fmtDelta(estado[clave]));
+    const inp = UI.el('input',{type:'range',min:50,max:150,value:estado[clave],oninput:(e)=>{estado[clave]=parseInt(e.target.value,10);val.textContent=fmtDelta(estado[clave]);recalc();}});
     return UI.el('div',{class:'field'},[UI.el('label',null,[etq+' ', val]), inp]);
   };
+  card.appendChild(UI.el('div',{class:'microayuda'},'±0 % = tu situación actual. Mueve cada barra para ver el efecto.'));
   card.appendChild(slider('Facturación','fact'));
   card.appendChild(slider('Costes fijos','fijos'));
   card.appendChild(slider('Coste de mercancía','merc'));
@@ -2307,7 +2440,7 @@ if (typeof window !== 'undefined') window.UI = UI;
 'use strict';
 const Guia = {};
 Guia.paso = 0;
-Guia.PASOS = ['sector','facturacion','margen','merma','fijos','personal','sueldo','inversion','escenarios','zona','observaciones','riesgos'];
+Guia.PASOS = ['sector','facturacion','margen','merma','fijos','personal','sueldo','inversion','zona','observaciones','riesgos','escenarios'];
 
 Guia.abrir = function () { Guia.paso = 0; App.modo = 'guia'; App.render(); };
 Guia.salir = function () { App.modo = 'proyecto'; App.tab = 'datos'; App.render(); };
@@ -2530,7 +2663,7 @@ App.modo = 'lista';                 // lista | proyecto | guia | comparador
 App.tab  = 'datos';                 // datos | escenarios | riesgos
 
 App.verLista     = function(){ App.modo='lista'; App.render(); };
-App.abrirProyecto = function(id){ if (id) App.state.activoId = id; App.modo='proyecto'; App.tab='datos'; if (window.UI) UI.escenarioSel='base'; Storage.guardar(App.state); App.render(); };
+App.abrirProyecto = function(id){ if (id) App.state.activoId = id; App.modo='proyecto'; App.tab='datos'; if (window.UI) { UI.escenarioSel='base'; UI.gastoAbierto=null; } Storage.guardar(App.state); App.render(); };
 App.irATab       = function(tab){ App.tab = tab; App.render(); };
 App.verComparador = function(){ App.modo='comparador'; if (window.UI) UI.comparadorSeleccion = App.state.proyectos.map(p=>p.id); App.render(); };
 App.verProyecto   = function(){ App.modo='proyecto'; App.render(); };
