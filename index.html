@@ -41,9 +41,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15
 .detalle-sub{font-size:13px;margin-top:2px}
 
 /* ---- Barra de pestañas ---- */
-.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:20px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:20px;overflow-x:auto}
 .tab{font-family:inherit;font-size:15px;padding:10px 16px;border:0;background:none;color:var(--muted);
-  cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+  cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;flex-shrink:0}
 .tab:hover{color:var(--text)}
 .tab.activa{color:var(--text);border-bottom-color:var(--accent)}
 .tabs[hidden]{display:none}
@@ -268,9 +268,13 @@ const Engine = {};
 Engine.MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
 // Parser tolerante para inputs de usuario: acepta coma decimal española.
+// Con coma, los puntos anteriores son separadores de miles ("1.234,56" → 1234.56);
+// sin coma, el punto se mantiene como decimal ("3.15" → 3.15, ambiguo pero histórico).
 Engine.parseNum = function (v) {
   if (typeof v === 'number') return isFinite(v) ? v : 0;
-  const n = parseFloat(String(v == null ? '' : v).trim().replace(',', '.'));
+  let s = String(v == null ? '' : v).trim();
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  const n = parseFloat(s);
   return isNaN(n) ? 0 : n;
 };
 
