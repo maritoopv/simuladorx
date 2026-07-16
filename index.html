@@ -1687,9 +1687,11 @@ UI.pct = n => (n||0).toFixed(1) + ' %';
 // helper: input numérico/texto que escribe en project[path] y refresca dashboard
 UI.campo = function (project, etiqueta, obj, clave, tipo, ayudaKey, ejemplo, recalc) {
   const esTexto = tipo === 'text';
-  const input = UI.el('input', { type: tipo || 'number',
-    ...(esTexto ? {} : { step:'any', inputmode:'decimal' }),
-    value: obj[clave] != null ? obj[clave] : '',
+  // Numéricos como type=text: type=number rechaza la coma decimal española antes
+  // de llegar a JS (sobre todo en iPhone), dejando el campo solo-enteros en la práctica.
+  const input = UI.el('input', { type: 'text',
+    ...(esTexto ? {} : { inputmode:'decimal' }),
+    value: obj[clave] != null ? (esTexto ? obj[clave] : String(obj[clave]).replace('.', ',')) : '',
     oninput: (e) => {
       obj[clave] = esTexto ? e.target.value : Engine.parseNum(e.target.value);
       App.guardarDebounced();
@@ -1778,6 +1780,8 @@ UI.bloqueMargen = function (project) {
 };
 
 UI.gastoAbierto = null;   // índice del gasto desplegado (persiste entre repintados)
+UI.zonaMasAbierto = false;   // "Más factores" de Zona abierto (persiste entre repintados)
+UI.obsDetalleAbierto = null; // id de la visita con "Más detalle" abierto (ídem)
 
 UI.bloqueCostesFijos = function (project) {
   const card = UI.el('div',{class:'card'},[UI.el('h2',null,'Gastos fijos (€/mes)')]);
@@ -1830,7 +1834,7 @@ UI.bloqueCostesFijos = function (project) {
 UI.estimadorFacturacion = function (project) {
   const wrap = UI.el('div',{class:'estimador'});
   const st = { clientesDia: 0 };
-  const cli = UI.el('input',{type:'number',step:'any',inputmode:'decimal',placeholder:'clientes/día',oninput:function(e){st.clientesDia=Engine.parseNum(e.target.value);}});
+  const cli = UI.el('input',{type:'text',inputmode:'decimal',placeholder:'clientes/día',oninput:function(e){st.clientesDia=Engine.parseNum(e.target.value);}});
   const out = UI.el('span',{class:'muted'});
   const calc = function(){ const dias=(project.operativa.diasAbiertosSemana||6)*4.33; const v=Math.round(st.clientesDia*(project.operativa.ticketMedio||0)*dias); out.textContent = v? ('≈ '+v.toLocaleString('es-ES')+' €/mes'):''; return v; };
   cli.addEventListener('input', calc);
@@ -1845,7 +1849,7 @@ UI.estimadorInversion = function (project) {
   const wrap = UI.el('div',{class:'estimador'}); const vals = {};
   const out = UI.el('div',{class:'kpi'});
   const total = function(){ const t=Object.values(vals).reduce(function(s,n){return s+(n||0);},0); out.textContent = 'Total: '+Math.round(t).toLocaleString('es-ES')+' €'; return t; };
-  items.forEach(function(it){ wrap.appendChild(UI.el('div',{class:'field'},[UI.el('label',null,it), UI.el('input',{type:'number',step:'any',inputmode:'decimal',placeholder:'€',oninput:function(e){vals[it]=Engine.parseNum(e.target.value);total();}})])); });
+  items.forEach(function(it){ wrap.appendChild(UI.el('div',{class:'field'},[UI.el('label',null,it), UI.el('input',{type:'text',inputmode:'decimal',placeholder:'€',oninput:function(e){vals[it]=Engine.parseNum(e.target.value);total();}})])); });
   wrap.appendChild(out);
   wrap.appendChild(UI.el('button',{class:'btn',onclick:function(){ project.inversionInicial=Math.round(total()); App.guardarDebounced(); App.refrescarTab(); }},'Usar como inversión inicial'));
   return wrap;
@@ -1871,16 +1875,16 @@ UI.bloquePersonal = function (project) {
     const fila = UI.el('div',{class:'grid-2'},[
       UI.campo(project,'Puesto',emp,'puesto','text'),
       UI.el('div',{class:'field'},[UI.el('label',null,'Nº de personas'),
-        UI.el('input',{type:'number',step:'any',inputmode:'decimal',value:emp.numero!=null?emp.numero:'',oninput:(e)=>{
+        UI.el('input',{type:'text',inputmode:'decimal',value:emp.numero!=null?emp.numero:'',oninput:(e)=>{
           emp.numero=Engine.parseNum(e.target.value);App.guardarDebounced();App.refrescarTab();
         }})]),
       UI.el('div',{class:'field'},[UI.el('label',null,'Horas/semana'),
-        UI.el('input',{type:'number',step:'any',inputmode:'decimal',value:emp.horasSemana!=null?emp.horasSemana:'',oninput:(e)=>{
+        UI.el('input',{type:'text',inputmode:'decimal',value:emp.horasSemana!=null?emp.horasSemana:'',oninput:(e)=>{
           emp.horasSemana=Engine.parseNum(e.target.value);App.guardarDebounced();App.refrescarTab();
         }})]),
       UI.el('div',{class:'field'},[UI.el('label',null,'Bruto €/mes'),
         UI.el('div',{style:'display:flex;gap:6px'},[
-          UI.el('input',{type:'number',step:'any',inputmode:'decimal',value:emp.sueldoBrutoMes!=null?emp.sueldoBrutoMes:'',oninput:(e)=>{
+          UI.el('input',{type:'text',inputmode:'decimal',value:emp.sueldoBrutoMes!=null?emp.sueldoBrutoMes:'',oninput:(e)=>{
             emp.sueldoBrutoMes=Engine.parseNum(e.target.value);App.guardarDebounced();App.refrescarTab();
           }}),
           UI.el('button',{class:'btn',title:'Quitar empleado',onclick:()=>{
@@ -1922,15 +1926,15 @@ UI.bloquePersonal = function (project) {
     UI.el('div',{class:'microayuda'},'Horas que abres × días/semana × personas a la vez = horas a cubrir. Lo divide entre una jornada de 40h.'),
     UI.el('div',{class:'grid-2'},[
       UI.el('div',{class:'field'},[UI.el('label',null,'Horas abiertas/día'),
-        UI.el('input',{type:'number',step:'any',inputmode:'decimal',placeholder:'10',value:o.horasAbiertasDia!=null?o.horasAbiertasDia:'',oninput:(e)=>{
+        UI.el('input',{type:'text',inputmode:'decimal',placeholder:'10',value:o.horasAbiertasDia!=null?o.horasAbiertasDia:'',oninput:(e)=>{
           o.horasAbiertasDia=Engine.parseNum(e.target.value);App.guardarDebounced();App.refrescarTab();
         }})]),
       UI.el('div',{class:'field'},[UI.el('label',null,'Días abiertos/semana'),
-        UI.el('input',{type:'number',step:'any',inputmode:'decimal',value:o.diasAbiertosSemana!=null?o.diasAbiertosSemana:'',oninput:(e)=>{
+        UI.el('input',{type:'text',inputmode:'decimal',value:o.diasAbiertosSemana!=null?o.diasAbiertosSemana:'',oninput:(e)=>{
           o.diasAbiertosSemana=Engine.parseNum(e.target.value);App.guardarDebounced();App.refrescarTab();
         }})]),
       UI.el('div',{class:'field'},[UI.el('label',null,'Personas a la vez'),
-        UI.el('input',{type:'number',step:'any',inputmode:'decimal',placeholder:'2',value:o.personasSimultaneas!=null?o.personasSimultaneas:'',oninput:(e)=>{
+        UI.el('input',{type:'text',inputmode:'decimal',placeholder:'2',value:o.personasSimultaneas!=null?o.personasSimultaneas:'',oninput:(e)=>{
           o.personasSimultaneas=Engine.parseNum(e.target.value);App.guardarDebounced();App.refrescarTab();
         }})])
     ]),
@@ -1955,11 +1959,11 @@ UI.bloquePersonal = function (project) {
     const fila = UI.el('div',{class:'grid-2'},[
       UI.campo(project,'Concepto',r,'concepto','text',null,'Camarero de finde'),
       UI.el('div',{class:'field'},[UI.el('label',null,'Horas/semana'),
-        UI.el('input',{type:'number',step:'any',inputmode:'decimal',value:r.horasSemana!=null?r.horasSemana:'',oninput:(e)=>{
+        UI.el('input',{type:'text',inputmode:'decimal',value:r.horasSemana!=null?r.horasSemana:'',oninput:(e)=>{
           r.horasSemana=Engine.parseNum(e.target.value);App.guardarDebounced();App.refrescarTab();
         }})]),
       UI.el('div',{class:'field'},[UI.el('label',null,'€/hora (bruto)'),
-        UI.el('input',{type:'number',step:'any',inputmode:'decimal',value:r.eurHora!=null?r.eurHora:'',oninput:(e)=>{
+        UI.el('input',{type:'text',inputmode:'decimal',value:r.eurHora!=null?r.eurHora:'',oninput:(e)=>{
           r.eurHora=Engine.parseNum(e.target.value);App.guardarDebounced();App.refrescarTab();
         }})]),
       UI.el('div',{class:'field'},[UI.el('label',null,'Cuándo'),
@@ -1972,7 +1976,7 @@ UI.bloquePersonal = function (project) {
         }}, CUANDO.map(c=>UI.el('option',{value:c.clave,...(c.clave===r.cuando?{selected:'selected'}:{})}, c.etiqueta)))]),
       UI.el('div',{class:'field'},[UI.el('label',null,'Semanas/año'),
         UI.el('div',{style:'display:flex;gap:6px'},[
-          UI.el('input',{type:'number',step:'any',inputmode:'decimal',value:r.semanasAnio!=null?r.semanasAnio:'',oninput:(e)=>{
+          UI.el('input',{type:'text',inputmode:'decimal',value:r.semanasAnio!=null?r.semanasAnio:'',oninput:(e)=>{
             r.semanasAnio=Engine.parseNum(e.target.value);App.guardarDebounced();App.refrescarTab();
           }}),
           UI.el('button',{class:'btn',title:'Quitar refuerzo',onclick:()=>{
@@ -2577,9 +2581,12 @@ UI.renderZona = function (project, cont) {
     const esNA = val === 'na';
     const nota = (typeof val === 'number') ? val : null;
     const valorTxt = UI.el('span',{class:'zona-nota'}, esNA ? 'No aplica' : (nota != null ? String(nota) : 'sin valorar'));
+    // oninput actualiza en vivo SIN repintar (repintar en mitad del arrastre rompe
+    // el deslizador y cierra "Más factores"); el repintado va en onchange (al soltar).
     const slider = UI.el('input',{ type:'range', min:'1', max:'10', step:'1', value: nota != null ? nota : 5,
       ...(esNA ? { disabled:'disabled' } : {}),
-      oninput:(e)=>{ project.zona.factores[f.clave] = parseInt(e.target.value, 10); App.guardarDebounced(); App.refrescarTab(); }
+      oninput:(e)=>{ const n = parseInt(e.target.value, 10); project.zona.factores[f.clave] = n; valorTxt.textContent = String(n); App.guardarDebounced(); },
+      onchange:()=>App.refrescarTab()
     });
     const na = UI.el('label',{class:'zona-na'},[
       UI.el('input',{ type:'checkbox', ...(esNA ? { checked:'checked' } : {}), onchange:(e)=>{
@@ -2598,7 +2605,9 @@ UI.renderZona = function (project, cont) {
 
   const card = UI.el('div',{class:'card'},[UI.el('h2',null,'Valora la zona (1-10, opcional)')]);
   catalogo.filter(f => f.destacado).forEach(f => card.appendChild(filaFactor(f)));
-  const det = UI.el('details',{class:'mas-detalle'},[UI.el('summary',null,'Más factores')]);
+  const det = UI.el('details',{class:'mas-detalle', ...(UI.zonaMasAbierto ? {open:''} : {}),
+    ontoggle:(e)=>{ if (e.target === e.currentTarget) UI.zonaMasAbierto = e.target.open; }},
+    [UI.el('summary',null,'Más factores')]);
   catalogo.filter(f => !f.destacado).forEach(f => det.appendChild(filaFactor(f)));
   card.appendChild(det);
   cont.appendChild(card);
@@ -2673,7 +2682,11 @@ UI.renderObservaciones = function (project, cont) {
       card.appendChild(UI.campo(project, '€/hora estimados', f, 'eurHora', 'number', null, '120', true));
     }
     card.appendChild(UI.campo(project, 'Notas', f, 'notas', 'text', null, 'lo que viste…'));
-    const det = UI.el('details', { class: 'mas-detalle' }, [UI.el('summary', null, 'Más detalle')]);
+    const det = UI.el('details', { class: 'mas-detalle', ...(UI.obsDetalleAbierto === f.id ? {open:''} : {}),
+      ontoggle: (e) => { if (e.target !== e.currentTarget) return;
+        if (e.target.open) UI.obsDetalleAbierto = f.id;
+        else if (UI.obsDetalleAbierto === f.id) UI.obsDetalleAbierto = null; } },
+      [UI.el('summary', null, 'Más detalle')]);
     det.appendChild(UI.el('div', { class: 'field' }, [UI.el('label', null, 'Clima'),
       chipGroup(Templates.OBS_CLIMA, f.clima, v => f.clima = v)]));
     det.appendChild(UI.el('div', { class: 'field' }, [UI.el('label', null, 'Ocupación'),
@@ -3348,7 +3361,7 @@ App.modo = 'lista';                 // lista | proyecto | guia | comparador
 App.tab  = 'datos';                 // datos | escenarios | riesgos
 
 App.verLista     = function(){ App.modo='lista'; App.render(); };
-App.abrirProyecto = function(id){ if (id) App.state.activoId = id; App.modo='proyecto'; App.tab='datos'; if (window.UI) { UI.escenarioSel='base'; UI.gastoAbierto=null; } Storage.guardar(App.state); App.render(); };
+App.abrirProyecto = function(id){ if (id) App.state.activoId = id; App.modo='proyecto'; App.tab='datos'; if (window.UI) { UI.escenarioSel='base'; UI.gastoAbierto=null; UI.zonaMasAbierto=false; UI.obsDetalleAbierto=null; } Storage.guardar(App.state); App.render(); };
 App.irATab       = function(tab){ App.tab = tab; App.render(); };
 App.verComparador = function(){ App.modo='comparador'; if (window.UI) UI.comparadorSeleccion = App.state.proyectos.map(p=>p.id); App.render(); };
 App.verProyecto   = function(){ App.modo='proyecto'; App.render(); };
@@ -3377,11 +3390,14 @@ App.refrescarTab = function () {
   // (por su posición) y el cursor, y lo restauramos tras volver a pintar.
   const panel = document.getElementById('panel-tab');
   const activo = document.activeElement;
-  let idx = -1, caret = null;
+  let idx = -1, caret = null, raw = null;
   if (panel && activo && panel.contains(activo) &&
       (activo.tagName === 'INPUT' || activo.tagName === 'TEXTAREA' || activo.tagName === 'SELECT')) {
     idx = Array.prototype.indexOf.call(panel.querySelectorAll('input, textarea, select'), activo);
     try { caret = activo.selectionStart; } catch (e) { caret = null; }
+    // El repintado normaliza el valor desde el estado ("2," → "2") y rompe la
+    // escritura de decimales: conservamos el texto tal cual se estaba tecleando.
+    if (activo.tagName === 'INPUT' || activo.tagName === 'TEXTAREA') raw = activo.value;
   }
 
   if (App.modo === 'proyecto') App.renderTab();
@@ -3391,6 +3407,7 @@ App.refrescarTab = function () {
     const panel2 = document.getElementById('panel-tab');
     const el = panel2 && panel2.querySelectorAll('input, textarea, select')[idx];
     if (el) {
+      if (raw != null && el.tagName !== 'SELECT') el.value = raw;
       el.focus();
       if (caret != null) { try { el.setSelectionRange(caret, caret); } catch (e) {} }
     }
