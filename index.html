@@ -218,6 +218,77 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15
 .gasto__acciones{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:4px 0 8px}
 .total-gastos{margin-top:10px;font-size:15px;font-weight:600}
 
+/* ---- Informe profesional (tema claro autocontenido, prefijo .inf-) ---- */
+.btn--informe{display:block;width:100%;margin-top:16px;padding:12px;font-size:15px}
+.inf-overlay{position:fixed;inset:0;background:#565a63;overflow-y:auto;z-index:100;padding:0 0 40px}
+.inf-barra{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;gap:8px;padding:10px 16px;background:#2b2e35;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.inf-doc{max-width:820px;margin:16px auto 0;background:#fff;color:#1c1e21;padding:56px 60px;border-radius:4px;box-shadow:0 6px 28px rgba(0,0,0,.4);font-size:14px;line-height:1.55}
+.inf-doc h1{font-size:34px;margin:0 0 6px;color:#1c1e21}
+.inf-doc h2{font-size:19px;margin:0 0 14px;padding-bottom:6px;border-bottom:2px solid #1c1e21;color:#1c1e21;text-transform:none;letter-spacing:0}
+.inf-doc h3{font-size:15px;margin:18px 0 8px;color:#1c1e21}
+.inf-doc p{margin:0 0 10px}
+.inf-seccion{margin-bottom:36px}
+.inf-suave{color:#5f6570}
+.inf-neg{color:#c62828}
+.inf-alerta{color:#c62828;font-weight:600}
+.inf-nota{font-size:12px;color:#8a8f98;border-top:1px solid #e4e6ea;padding-top:10px;margin-top:18px}
+.inf-punto{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;flex:none}
+.inf-portada{display:flex;flex-direction:column;justify-content:center;min-height:70vh;text-align:center;gap:6px}
+.inf-portada__marca{font-size:13px;letter-spacing:3px;text-transform:uppercase;color:#8a8f98}
+.inf-portada__sub{font-size:16px;color:#5f6570}
+.inf-portada__fecha{font-size:13px;color:#8a8f98;margin-bottom:28px}
+.inf-portada__veredicto{display:inline-flex;align-items:center;justify-content:center;gap:10px;margin:0 auto;padding:12px 28px;border:2px solid;border-radius:40px;font-size:20px;font-weight:700}
+.inf-portada__pie{margin-top:48px;font-size:12px;color:#8a8f98}
+.inf-inds{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.inf-ind{border:1px solid #e4e6ea;border-radius:8px;padding:10px 12px;text-align:center}
+.inf-ind__val{font-size:18px;font-weight:700}
+.inf-ind--mal .inf-ind__val{color:#c62828}
+.inf-ind__etq{font-size:11px;color:#5f6570;margin-top:2px}
+.inf-tabla{width:100%;border-collapse:collapse;margin:10px 0 14px;font-size:13px}
+.inf-tabla th{text-align:left;border-bottom:2px solid #1c1e21;padding:6px 8px;font-size:12px}
+.inf-tabla td{border-bottom:1px solid #e4e6ea;padding:6px 8px}
+.inf-sem{display:inline-flex;align-items:center;font-size:12px;color:#5f6570}
+.inf-lista{margin:0 0 10px;padding-left:20px}
+.inf-lista li{margin-bottom:5px}
+@media (max-width:700px){
+  .inf-doc{padding:28px 18px;margin:0}
+  .inf-inds{grid-template-columns:repeat(2,1fr)}
+}
+
+.inf-veredicto{display:flex;gap:24px;align-items:flex-start;justify-content:space-between}
+.inf-veredicto__titulo{font-size:22px;font-weight:700;margin-bottom:4px}
+.inf-dims{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.inf-dim{display:flex;align-items:baseline;gap:4px}
+.inf-riesgo__aro{text-align:center;flex:none}
+.inf-riesgo__banda{font-weight:700;margin-top:2px}
+.inf-riesgo__comp{margin-top:18px;display:grid;grid-template-columns:1fr 1fr;gap:8px 20px}
+.inf-comp__etq{font-size:12px;font-weight:600}
+.inf-comp__track{height:6px;background:#eceef1;border-radius:3px;margin:3px 0}
+.inf-comp__fill{height:100%;background:#b26a00;border-radius:3px}
+.inf-comp__txt{font-size:11px;color:#5f6570}
+.inf-antes-despues{display:flex;align-items:center;justify-content:center;gap:18px;margin:16px 0}
+.inf-ad__caja{border:1px solid #e4e6ea;border-radius:8px;padding:12px 22px;text-align:center}
+.inf-ad__caja .inf-ind__val{font-size:20px}
+.inf-ad__flecha{font-size:24px;color:#5f6570}
+
+@media (max-width:700px){
+  .inf-veredicto{flex-direction:column}
+  .inf-riesgo__comp{grid-template-columns:1fr}
+}
+
+/* ---- Impresión del informe (A4) ---- */
+@page{size:A4;margin:16mm}
+@media print{
+  body.informe-abierto #app{display:none!important}
+  body.informe-abierto{background:#fff}
+  body.informe-abierto .inf-overlay{position:static;overflow:visible;padding:0;background:#fff}
+  .inf-doc{max-width:none;margin:0;padding:0;box-shadow:none;border-radius:0}
+  .inf-barra,.no-print{display:none!important}
+  .inf-seccion{break-inside:avoid}
+  .inf-portada{break-after:page;min-height:auto;padding:120px 0}
+  .inf-plan{break-before:page}
+}
+
 </style>
 </head>
 <body>
@@ -830,6 +901,185 @@ Engine.veredictoFinal = function (project, opts) {
   const TITULOS = { adelante: 'Adelante', negocia: 'Negocia o revisa', descarta: 'Descártalo' };
   const COLORES = { adelante: 'verde', negocia: 'ambar', descarta: 'rojo' };
   return { nivel, titulo: TITULOS[nivel], color: COLORES[nivel], rebajas, avisos, dimensiones };
+};
+
+// Clon profundo para simulaciones (los proyectos son JSON puro).
+Engine.clonProyecto = function (project) { return JSON.parse(JSON.stringify(project)); };
+
+// Criterio de viabilidad: la negación del rojo del veredicto de dinero.
+Engine.esViable = function (a) {
+  return a.realista.beneficioNeto > 0
+    && isFinite(a.breakeven.breakevenAnual)
+    && a.breakeven.margenSeguridadPct >= 0;
+};
+
+// Índice de riesgo 0–100 a partir de señales ya calculadas por el motor.
+// opts.zona = resultado de Engine.veredictoZona; opts.validacion = de Engine.validacionRiesgos.
+// Componente sin datos → mitad de su peso (prudente: la incertidumbre no puntúa 0).
+Engine.indiceRiesgo = function (project, a, opts) {
+  const o = opts || {};
+  const componentes = [];
+  const add = (clave, etiqueta, puntos, max, texto) => {
+    const p = Math.max(0, Math.min(max, puntos));
+    componentes.push({ clave, etiqueta, puntos: Math.round(p * 10) / 10, max, texto });
+  };
+  const eur = n => Math.round(n).toLocaleString('es-ES');
+
+  // Margen de seguridad (30): holgado a partir del 25 %.
+  const ms = a.breakeven.margenSeguridadPct;
+  if (!isFinite(ms)) add('margen_seguridad', 'Margen de seguridad', 30, 30, 'Sin punto de equilibrio alcanzable.');
+  else if (ms < 0) add('margen_seguridad', 'Margen de seguridad', 30, 30, 'Negativo: facturas por debajo del equilibrio.');
+  else add('margen_seguridad', 'Margen de seguridad', 30 * Math.max(0, 1 - ms / 25), 30, ms.toFixed(0) + ' % (holgado a partir del 25 %).');
+
+  // Escenario pesimista (25): peso completo si la pérdida llega al 15 % de sus ventas.
+  const pes = a.pesimista;
+  if (pes.beneficioNeto >= 0) add('pesimista', 'Escenario pesimista', 0, 25, 'Aguantas un mal año sin pérdidas.');
+  else {
+    const ratio = pes.facturacion > 0 ? Math.min(1, -pes.beneficioNeto / (pes.facturacion * 0.15)) : 1;
+    add('pesimista', 'Escenario pesimista', 25 * ratio, 25, 'En un mal año pierdes ' + eur(-pes.beneficioNeto) + ' €.');
+  }
+
+  // Colchón de caja (15): solo el bache OPERATIVO del año (la inversión inicial
+  // no es un "mes malo"); peso completo si necesitas ≥ 3 meses de costes fijos.
+  const fijosMes = a.realista.costesFijosAnuales / 12;
+  let runCaja = 0, minCaja = 0;
+  (a.cashflow.cajaMes || []).forEach(c => { runCaja += c; if (runCaja < minCaja) minCaja = runCaja; });
+  const colchon = Math.max(0, -minCaja);
+  if (colchon <= 0) add('colchon', 'Colchón de caja', 0, 15, 'La caja operativa no llega a estar en negativo.');
+  else add('colchon', 'Colchón de caja', fijosMes > 0 ? 15 * Math.min(1, colchon / (3 * fijosMes)) : 15, 15,
+    'Necesitas ~' + eur(colchon) + ' € para aguantar los meses malos.');
+
+  // Validación de riesgos (15).
+  const val = o.validacion;
+  if (!val || !val.total) add('validacion', 'Validación de riesgos', 7.5, 15, 'Checklist sin empezar.');
+  else add('validacion', 'Validación de riesgos', 15 * (1 - (val.pct || 0) / 100), 15, val.hechos + '/' + val.total + ' comprobados.');
+
+  // Zona (15).
+  const zona = o.zona;
+  if (!zona || zona.nivel === 'sin_datos') add('zona', 'Zona', 7.5, 15, 'Sin valorar.');
+  else if (zona.nivel === 'fuerte') add('zona', 'Zona', 0, 15, 'Zona fuerte (media ' + zona.media.toFixed(1) + ').');
+  else if (zona.nivel === 'media') add('zona', 'Zona', 7.5, 15, 'Zona media (media ' + zona.media.toFixed(1) + ').');
+  else add('zona', 'Zona', 15, 15, 'Zona peligrosa (media ' + zona.media.toFixed(1) + ').');
+
+  const valor = Math.max(0, Math.min(100, Math.round(componentes.reduce((s, c) => s + c.puntos, 0))));
+  const banda = valor <= 33 ? 'baja' : (valor <= 66 ? 'media' : 'alta');
+  return { valor, banda, componentes };
+};
+
+// ¿Qué tendría que cambiar para que el negocio sea viable?
+// Palancas de mejora PLAUSIBLES (topes de prudencia fijos o ligados al benchmark
+// del sector); greedy por impacto, cada palanca al paso más pequeño que baste,
+// recalculando SIEMPRE con Engine.analyze sobre un clon. Tres modos:
+// ya viable (mejora, top 3) / alcanza viabilidad (combinación mínima) / no llega.
+Engine.planViabilidad = function (project, opts) {
+  const o = opts || {};
+  const b = o.benchmarks || { costeMercanciaPct:[20,40], mermaPct:[0,5], alquilerSobreVentasPct:[5,12], paybackAnios:[2,5], personalSobreVentasPct:[0,35] };
+  const antes = Engine.analyze(project);
+  const netoMes0 = antes.realista.beneficioNeto / 12;
+  const base = antes.base;
+  const eur = n => Math.round(n).toLocaleString('es-ES');
+
+  const escalaFacturacion = (p, factor) => {
+    const f = p.facturacion || {};
+    f.mesBueno = (Number(f.mesBueno) || 0) * factor;
+    f.mesNormal = (Number(f.mesNormal) || 0) * factor;
+    f.mesMalo = (Number(f.mesMalo) || 0) * factor;
+  };
+
+  const palancas = [];
+  if (base > 0) {
+    palancas.push({ clave:'ticket', titulo:'Subir el ticket medio', pasos:[2, 5],
+      aplicar: (c, x) => { escalaFacturacion(c, 1 + x / 100);
+        if (c.operativa) c.operativa.ticketMedio = (Number(c.operativa.ticketMedio) || 0) * (1 + x / 100); },
+      descripcion: (x) => {
+        const t = Number((project.operativa || {}).ticketMedio) || 0;
+        const extra = t > 0 ? ' (+' + (t * x / 100).toFixed(2).replace('.', ',') + ' € por cliente)' : '';
+        return 'Sube el ticket medio un ' + x + ' %' + extra + '.';
+      } });
+    palancas.push({ clave:'clientes', titulo:'Atraer más clientes', pasos:[5, 10],
+      aplicar: (c, x) => escalaFacturacion(c, 1 + x / 100),
+      descripcion: (x) => 'Consigue un ' + x + ' % más de clientes manteniendo el ticket.' });
+  }
+  const cmActual = Engine.costeMercanciaPct(project.margen);
+  const topeCM = (b.costeMercanciaPct && b.costeMercanciaPct[1] != null) ? b.costeMercanciaPct[1] : null;
+  if (topeCM != null && cmActual > topeCM) {
+    palancas.push({ clave:'mercancia', titulo:'Bajar el coste de mercancía', pasos:[topeCM],
+      aplicar: (c, x) => { c.margen = { modo:'global', costeMercanciaPct:x, productos:[], categorias:[] }; },
+      descripcion: (x) => 'Baja el coste de mercancía del ' + cmActual.toFixed(0) + ' % al ' + x + ' % (tope orientativo del sector): renegocia proveedores o revisa escandallos.' });
+  }
+  const personalAnual = Engine.costePersonalAnual(project);
+  const topePersonal = (b.personalSobreVentasPct && b.personalSobreVentasPct[1] != null) ? b.personalSobreVentasPct[1] : 35;
+  if (personalAnual > 0 && base > 0 && personalAnual / base * 100 > topePersonal) {
+    palancas.push({ clave:'personal', titulo:'Reducir el coste de personal', pasos:[5],
+      aplicar: (c, x) => { const f = 1 - x / 100;
+        (c.empleados || []).forEach(e => { e.sueldoBrutoMes = (Number(e.sueldoBrutoMes) || 0) * f; });
+        (c.refuerzos || []).forEach(r => { r.eurHora = (Number(r.eurHora) || 0) * f; }); },
+      descripcion: (x) => 'Reduce el coste de personal un ' + x + ' % ajustando horas o plantilla (hoy supera el tope orientativo del sector, ' + topePersonal + ' % de las ventas).' });
+  }
+  const alquiler = (project.costesFijos || []).find(c => /alquiler/i.test(c.concepto || ''));
+  const maxAlqMes = (base > 0 && b.alquilerSobreVentasPct && b.alquilerSobreVentasPct[1] != null)
+    ? b.alquilerSobreVentasPct[1] / 100 * base / 12 : null;
+  if (alquiler && maxAlqMes != null && (Number(alquiler.importe) || 0) > maxAlqMes) {
+    palancas.push({ clave:'alquiler', titulo:'Renegociar el alquiler', pasos:[Math.round(maxAlqMes)],
+      aplicar: (c, x) => { const a2 = (c.costesFijos || []).find(cc => /alquiler/i.test(cc.concepto || '')); if (a2) a2.importe = x; },
+      descripcion: (x) => 'Renegocia el alquiler de ' + eur(alquiler.importe) + ' € a ' + eur(x) + ' €/mes (máximo recomendado para tus ventas).' });
+  }
+
+  // Impacto individual de cada palanca a su tope, sobre el proyecto original.
+  const netoMesDe = (p) => Engine.analyze(p).realista.beneficioNeto / 12;
+  palancas.forEach(pl => {
+    const clon = Engine.clonProyecto(project);
+    pl.aplicar(clon, pl.pasos[pl.pasos.length - 1]);
+    pl.impactoMax = netoMesDe(clon) - netoMes0;
+  });
+  palancas.sort((p1, p2) => p2.impactoMax - p1.impactoMax);
+
+  const viableYa = Engine.esViable(antes);
+  const pasosOut = [];
+  const acum = Engine.clonProyecto(project);
+  let netoAcum = netoMes0;
+  const aplicarYRegistrar = (pl, x) => {
+    pl.aplicar(acum, x);
+    const neto = netoMesDe(acum);
+    pasosOut.push({ clave: pl.clave, titulo: pl.titulo, descripcion: pl.descripcion(x), impactoMes: neto - netoAcum });
+    netoAcum = neto;
+  };
+
+  if (viableYa) {
+    palancas.filter(pl => pl.impactoMax > 0).slice(0, 3)
+      .forEach(pl => aplicarYRegistrar(pl, pl.pasos[pl.pasos.length - 1]));
+  } else {
+    for (const pl of palancas) {
+      if (pl.impactoMax <= 0) continue;
+      let elegido = pl.pasos[pl.pasos.length - 1];
+      for (const x of pl.pasos) {  // el paso más pequeño que baste
+        const prueba = Engine.clonProyecto(acum);
+        pl.aplicar(prueba, x);
+        if (Engine.esViable(Engine.analyze(prueba))) { elegido = x; break; }
+      }
+      aplicarYRegistrar(pl, elegido);
+      if (Engine.esViable(Engine.analyze(acum))) break;
+    }
+  }
+
+  const despuesA = Engine.analyze(acum);
+  const alcanzaViabilidad = Engine.esViable(despuesA);
+  const antesOut = { netoMes: netoMes0, netoAnual: antes.realista.beneficioNeto };
+  const despuesOut = { netoMes: despuesA.realista.beneficioNeto / 12, netoAnual: despuesA.realista.beneficioNeto };
+
+  let resumen;
+  const lista = pasosOut.map(p2 => p2.descripcion.replace(/\.$/, '')).join('; ');
+  if (viableYa) {
+    resumen = pasosOut.length
+      ? 'El negocio ya es viable. Aun así hay margen: ' + lista + '. Pasarías de ' + eur(antesOut.netoMes) + ' a ~' + eur(despuesOut.netoMes) + ' € netos al mes.'
+      : 'El negocio ya es viable y no vemos palancas de mejora claras dentro de rangos prudentes.';
+  } else if (alcanzaViabilidad) {
+    resumen = 'Si haces esto — ' + lista + ' — el negocio pasaría de ' + eur(antesOut.netoMes) + ' a ~' + eur(despuesOut.netoMes) + ' € netos al mes y sería viable.';
+  } else {
+    resumen = 'Ni aplicando todas las mejoras plausibles dentro de los rangos del sector (' + (lista || 'ninguna palanca disponible') + ') el negocio sale viable: replantea el modelo — precio, local o formato.';
+  }
+
+  return { viableYa, alcanzaViabilidad, antes: antesOut, despues: despuesOut, pasos: pasosOut, resumen };
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = Engine;
@@ -2011,6 +2261,10 @@ UI.renderEscenarios = function (project, cont) {
   UI.renderDashboardCajaYRatios(project, a, det);
   UI.renderDashboardListas(project, a, det);
   cont.appendChild(det);
+
+  // Informe profesional (documento imprimible)
+  cont.appendChild(UI.el('button', { class:'btn btn--accent btn--informe',
+    onclick: () => Informe.abrir(project) }, '📄 Generar informe profesional'));
 };
 
 UI.aroPct = function (pct) {
@@ -2513,6 +2767,8 @@ Guia.render = function (project) {
       UI.campo(project,'Escenario optimista (+%)',project.escenarios,'optimistaPct'),
       UI.campo(project,'Escenario pesimista (−%)',project.escenarios,'pesimistaPct')
     ]));
+    card.appendChild(UI.el('div',{class:'microayuda'},'Al terminar podrás generar un informe profesional en PDF con todo el análisis.'));
+    card.appendChild(UI.el('button',{class:'btn btn--accent btn--informe',onclick:()=>Informe.abrir(project)},'📄 Generar informe profesional'));
   } else if (paso === 'zona') {
     card.appendChild(UI.el('h2',null,'¿Qué tal la ubicación?'));
     card.appendChild(UI.el('div',{class:'microayuda'},'Valora la zona del 1 al 10 (lo que puedas). La ubicación puede cambiarlo todo.'));
@@ -2542,6 +2798,431 @@ Guia.render = function (project) {
 };
 
 if (typeof window !== 'undefined') window.Guia = Guia;
+
+</script>
+  <script>
+'use strict';
+// Informe profesional: documento imprimible (tema claro A4) generado desde el
+// análisis del motor. Solo presentación: ningún número se calcula aquí.
+const Informe = {};
+
+Informe.eur = n => Math.round(Number(n) || 0).toLocaleString('es-ES') + ' €';
+Informe.pct1 = n => (Number(n) || 0).toFixed(1).replace('.', ',') + ' %';
+Informe.COLOR = { verde:'#2e7d32', ambar:'#b26a00', rojo:'#c62828', neutro:'#8a8f98', tinta:'#1c1e21', suave:'#5f6570' };
+
+Informe.nombreSector = function (sector) {
+  const s = (Templates.SECTORES || []).find(x => x.id === sector);
+  if (s) return s.nombre;
+  if (typeof sector === 'string' && sector.indexOf('personalizada:') === 0) {
+    const t = ((window.App && App.state.plantillas) || []).find(t2 => ('personalizada:' + t2.id) === sector);
+    if (t && t.nombre) return t.nombre;
+  }
+  return 'Otro / personalizado';
+};
+
+Informe.contexto = function (project) {
+  const benchmarks = Templates.benchmarks(project.sector);
+  const catZona = Templates.ZONA();
+  const catRiesgos = Templates.RIESGOS(Templates.sectorEfectivoRiesgos(project.sector, (window.App && App.state.plantillas) || []));
+  const a = Engine.analyze(project);
+  const zona = Engine.veredictoZona(project.zona, catZona);
+  const validacion = Engine.validacionRiesgos(project, catRiesgos);
+  return {
+    project, a, benchmarks, catRiesgos, validacion,
+    vf: Engine.veredictoFinal(project, { catalogoZona: catZona, catalogoRiesgos: catRiesgos,
+      topePersonal: (benchmarks.personalSobreVentasPct || [0, 35])[1] }),
+    riesgo: Engine.indiceRiesgo(project, a, { zona, validacion }),
+    plan: Engine.planViabilidad(project, { benchmarks }),
+    objetivos: Engine.objetivos(project, a, benchmarks),
+    temporadas: Engine.resultadoPorTemporada(project, 1),
+    sectorNombre: Informe.nombreSector(project.sector),
+    fecha: new Date().toLocaleDateString('es-ES', { day:'numeric', month:'long', year:'numeric' })
+  };
+};
+
+Informe.abrir = function (project) {
+  Informe.cerrar();
+  const ctx = Informe.contexto(project);
+  const doc = UI.el('div', { class:'inf-doc' }, Informe.SECCIONES.map(fn => fn(ctx)).filter(Boolean));
+  const barra = UI.el('div', { class:'inf-barra no-print' }, [
+    UI.el('button', { class:'btn', onclick: Informe.cerrar }, '← Volver'),
+    UI.el('button', { class:'btn btn--accent', onclick: () => window.print() }, '⬇ Descargar PDF')
+  ]);
+  const overlay = UI.el('div', { id:'informe-overlay', class:'inf-overlay' }, [barra, doc]);
+  document.body.appendChild(overlay);
+  document.body.classList.add('informe-abierto');
+  overlay.scrollTop = 0;
+};
+
+Informe.cerrar = function () {
+  const o = document.getElementById('informe-overlay');
+  if (o) o.remove();
+  document.body.classList.remove('informe-abierto');
+};
+
+// ---------- helpers de presentación ----------
+Informe.indicador = function (etq, val, mal) {
+  return UI.el('div', { class:'inf-ind' + (mal ? ' inf-ind--mal' : '') }, [
+    UI.el('div', { class:'inf-ind__val' }, val),
+    UI.el('div', { class:'inf-ind__etq' }, etq)
+  ]);
+};
+
+Informe.tabla = function (cabeceras, filas) {
+  return UI.el('table', { class:'inf-tabla' }, [
+    UI.el('thead', null, UI.el('tr', null, cabeceras.map(h => UI.el('th', null, h)))),
+    UI.el('tbody', null, filas.map(f => UI.el('tr', null, f.map(cel =>
+      UI.el('td', null, (cel && cel.nodeType) ? cel : String(cel))))))
+  ]);
+};
+
+Informe.semaforo = function (color, txt) {
+  return UI.el('span', { class:'inf-sem' }, [
+    UI.el('span', { class:'inf-punto', style:'background:' + (Informe.COLOR[color] || Informe.COLOR.neutro) }), txt]);
+};
+
+// ---------- secciones ----------
+Informe.sPortada = function (ctx) {
+  const c = Informe.COLOR[ctx.vf.color] || Informe.COLOR.neutro;
+  return UI.el('section', { class:'inf-seccion inf-portada' }, [
+    UI.el('div', { class:'inf-portada__marca' }, 'SimuladorX'),
+    UI.el('h1', null, ctx.project.nombre || 'Proyecto'),
+    UI.el('div', { class:'inf-portada__sub' }, 'Estudio de viabilidad · ' + ctx.sectorNombre),
+    UI.el('div', { class:'inf-portada__fecha' }, ctx.fecha),
+    UI.el('div', { class:'inf-portada__veredicto', style:'border-color:' + c + ';color:' + c }, [
+      UI.el('span', { class:'inf-punto', style:'background:' + c }), ctx.vf.titulo]),
+    UI.el('div', { class:'inf-portada__pie' }, 'Informe generado automáticamente con SimuladorX a partir de los datos introducidos.')
+  ]);
+};
+
+Informe.sResumen = function (ctx) {
+  const a = ctx.a, real = a.realista;
+  const beMes = isFinite(a.breakeven.breakevenAnual) ? a.breakeven.breakevenAnual / 12 : null;
+  const ms = a.breakeven.margenSeguridadPct;
+  const euroHora = a.propietario.euroHoraReal;
+  const frases = [];
+  frases.push('El proyecto "' + (ctx.project.nombre || 'sin nombre') + '" (' + ctx.sectorNombre.toLowerCase() + ') prevé facturar ' + Informe.eur(a.base) + ' al año.');
+  frases.push('En el escenario realista deja ' + Informe.eur(real.beneficioNeto / 12) + ' netos al mes (' + Informe.eur(real.beneficioNeto) + '/año), con un margen neto del ' + Informe.pct1(real.margenNetoPct) + '.');
+  if (beMes != null) frases.push('Necesita ' + Informe.eur(beMes) + '/mes para cubrir costes' + (isFinite(ms) && ms >= 0 ? ', lo que deja un margen de seguridad del ' + Informe.pct1(ms) : ', por encima de lo que prevé facturar') + '.');
+  frases.push('Veredicto global: ' + ctx.vf.titulo.toLowerCase() + ', con un índice de riesgo de ' + ctx.riesgo.valor + '/100 (' + ({ baja:'bajo', media:'medio', alta:'alto' })[ctx.riesgo.banda] + ').');
+  if (!ctx.plan.viableYa) frases.push(ctx.plan.alcanzaViabilidad
+    ? 'Hay un camino realista hacia la viabilidad (ver Plan de acción).'
+    : 'Con mejoras plausibles no llega a viable: hay que replantear el modelo (ver Plan de acción).');
+  return UI.el('section', { class:'inf-seccion' }, [
+    UI.el('h2', null, '1 · Resumen ejecutivo'),
+    UI.el('p', null, frases.join(' ')),
+    UI.el('div', { class:'inf-inds' }, [
+      Informe.indicador('Beneficio neto/mes', Informe.eur(real.beneficioNeto / 12), real.beneficioNeto < 0),
+      Informe.indicador('Beneficio neto/año', Informe.eur(real.beneficioNeto), real.beneficioNeto < 0),
+      Informe.indicador('Punto de equilibrio', beMes != null ? Informe.eur(beMes) + '/mes' : '—', beMes == null),
+      Informe.indicador('Margen de seguridad', isFinite(ms) ? Informe.pct1(ms) : '—', !isFinite(ms) || ms < 0),
+      Informe.indicador('Payback', (a.inversion && isFinite(a.inversion.paybackAnios)) ? a.inversion.paybackAnios.toFixed(1).replace('.', ',') + ' años' : '—', !!(a.inversion && a.inversion.paybackAnios > 5)),
+      Informe.indicador('€/hora del propietario', euroHora != null ? euroHora.toFixed(2).replace('.', ',') + ' €' : '—', euroHora != null && euroHora < 8)
+    ])
+  ]);
+};
+
+// ---------- gráficos SVG (paleta clara, sin librerías) ----------
+Informe.svgAro = function (valor, color) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const r = 44, c = 2 * Math.PI * r, off = c * (1 - Math.max(0, Math.min(100, valor)) / 100);
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 110 110'); svg.setAttribute('width', '110'); svg.setAttribute('height', '110');
+  const mk = (extra) => { const el = document.createElementNS(ns, 'circle');
+    el.setAttribute('cx', 55); el.setAttribute('cy', 55); el.setAttribute('r', r);
+    el.setAttribute('fill', 'none'); el.setAttribute('stroke-width', '10');
+    for (const k of Object.keys(extra)) el.setAttribute(k, extra[k]); return el; };
+  svg.appendChild(mk({ stroke:'#e4e6ea' }));
+  svg.appendChild(mk({ stroke: color, 'stroke-dasharray': c, 'stroke-dashoffset': off,
+    'stroke-linecap':'round', transform:'rotate(-90 55 55)' }));
+  const t = document.createElementNS(ns, 'text');
+  t.setAttribute('x', 55); t.setAttribute('y', 63); t.setAttribute('text-anchor', 'middle');
+  t.setAttribute('font-size', '26'); t.setAttribute('font-weight', '700'); t.setAttribute('fill', color);
+  t.textContent = valor;
+  svg.appendChild(t);
+  return svg;
+};
+
+Informe.svgBarrasEscenarios = function (items) {
+  const W = 520, H = 190, pad = 34, bw = 90;
+  const ns = 'http://www.w3.org/2000/svg';
+  const max = Math.max(1, ...items.map(i => Math.abs(i.val)));
+  const y0 = (H - 20) / 2 + 6;
+  const esc = ((H - 20) / 2 - pad) / max;
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.setAttribute('width', '100%');
+  const eje = document.createElementNS(ns, 'line');
+  eje.setAttribute('x1', 10); eje.setAttribute('x2', W - 10); eje.setAttribute('y1', y0); eje.setAttribute('y2', y0);
+  eje.setAttribute('stroke', '#c9ccd2'); svg.appendChild(eje);
+  items.forEach((it, i) => {
+    const x = 45 + i * ((W - 90) / items.length);
+    const h = Math.abs(it.val) * esc;
+    const rect = document.createElementNS(ns, 'rect');
+    rect.setAttribute('x', x); rect.setAttribute('width', bw);
+    rect.setAttribute('y', it.val >= 0 ? y0 - h : y0); rect.setAttribute('height', Math.max(1, h));
+    rect.setAttribute('fill', it.val >= 0 ? '#2e7d32' : '#c62828'); rect.setAttribute('rx', 3);
+    svg.appendChild(rect);
+    const t = document.createElementNS(ns, 'text');
+    t.setAttribute('x', x + bw / 2); t.setAttribute('y', it.val >= 0 ? y0 - h - 8 : y0 + h + 15);
+    t.setAttribute('text-anchor', 'middle'); t.setAttribute('font-size', '13'); t.setAttribute('fill', '#1c1e21');
+    t.textContent = Informe.eur(it.val) + '/mes';
+    svg.appendChild(t);
+    const e2 = document.createElementNS(ns, 'text');
+    e2.setAttribute('x', x + bw / 2); e2.setAttribute('y', H - 4);
+    e2.setAttribute('text-anchor', 'middle'); e2.setAttribute('font-size', '12'); e2.setAttribute('fill', '#5f6570');
+    e2.textContent = it.etq;
+    svg.appendChild(e2);
+  });
+  return svg;
+};
+
+Informe.svgApilada = function (s) {
+  const personal = Math.max(0, Number(s.costePersonalAnual) || 0);
+  const fijosSinPersonal = Math.max(0, (s.costesFijosAnuales || 0) - personal);
+  const partes = [
+    { etq:'Mercancía', val:s.costeMercancia, color:'#9aa0ab' },
+    { etq:'Merma', val:s.merma, color:'#b4b9c2' },
+    { etq:'Personal', val:personal, color:'#7d8490' },
+    { etq:'Fijos', val:fijosSinPersonal, color:'#666d79' },
+    { etq:'Impuestos', val:s.impuestos, color:'#cdd1d8' },
+    { etq:'Beneficio', val:Math.max(0, s.beneficioNeto), color:'#2e7d32' }
+  ];
+  const total = partes.reduce((t, p) => t + p.val, 0) || 1;
+  const W = 520, H = 52; let x = 0;
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.setAttribute('width', '100%');
+  partes.forEach(p => {
+    const w = p.val / total * W;
+    const rect = document.createElementNS(ns, 'rect');
+    rect.setAttribute('x', x); rect.setAttribute('y', 0); rect.setAttribute('width', Math.max(0, w)); rect.setAttribute('height', 26);
+    rect.setAttribute('fill', p.color);
+    svg.appendChild(rect);
+    if (w > 46) {
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', x); t.setAttribute('y', 44); t.setAttribute('font-size', '11'); t.setAttribute('fill', '#5f6570');
+      t.textContent = p.etq + ' ' + Math.round(p.val / total * 100) + ' %';
+      svg.appendChild(t);
+    }
+    x += w;
+  });
+  return svg;
+};
+
+Informe.sVeredicto = function (ctx) {
+  const col = { verde: Informe.COLOR.verde, ambar: Informe.COLOR.ambar, rojo: Informe.COLOR.rojo, neutro: Informe.COLOR.neutro };
+  const bandaTxt = { baja:'Riesgo bajo', media:'Riesgo medio', alta:'Riesgo alto' };
+  const bandaCol = { baja: Informe.COLOR.verde, media: Informe.COLOR.ambar, alta: Informe.COLOR.rojo };
+  const dims = UI.el('div', { class:'inf-dims' }, ctx.vf.dimensiones.map(d =>
+    UI.el('div', { class:'inf-dim' }, [
+      UI.el('span', { class:'inf-punto', style:'background:' + (col[d.estado] || col.neutro) }),
+      UI.el('strong', null, d.etiqueta + ': '),
+      UI.el('span', null, d.texto)
+    ])));
+  const compBars = UI.el('div', { class:'inf-riesgo__comp' }, ctx.riesgo.componentes.map(cp => {
+    const pctBar = cp.max > 0 ? cp.puntos / cp.max * 100 : 0;
+    return UI.el('div', { class:'inf-comp' }, [
+      UI.el('div', { class:'inf-comp__etq' }, cp.etiqueta + ' (' + String(cp.puntos).replace('.', ',') + '/' + cp.max + ')'),
+      UI.el('div', { class:'inf-comp__track' }, [UI.el('div', { class:'inf-comp__fill', style:'width:' + pctBar + '%' })]),
+      UI.el('div', { class:'inf-comp__txt' }, cp.texto)
+    ]);
+  }));
+  return UI.el('section', { class:'inf-seccion' }, [
+    UI.el('h2', null, '2 · Veredicto y riesgo'),
+    UI.el('div', { class:'inf-veredicto' }, [
+      UI.el('div', null, [
+        UI.el('div', { class:'inf-veredicto__titulo', style:'color:' + (col[ctx.vf.color] || col.neutro) }, ctx.vf.titulo),
+        UI.el('p', { class:'inf-suave' }, (ctx.vf.rebajas && ctx.vf.rebajas.length) ? ctx.vf.rebajas[0] : ctx.a.verdict.motivo),
+        dims
+      ]),
+      UI.el('div', { class:'inf-riesgo__aro' }, [
+        Informe.svgAro(ctx.riesgo.valor, bandaCol[ctx.riesgo.banda]),
+        UI.el('div', { class:'inf-riesgo__banda', style:'color:' + bandaCol[ctx.riesgo.banda] }, bandaTxt[ctx.riesgo.banda]),
+        UI.el('div', { class:'inf-suave' }, 'Índice de riesgo (0–100)')
+      ])
+    ]),
+    compBars
+  ]);
+};
+
+Informe.sEscenarios = function (ctx) {
+  const a = ctx.a;
+  const esc = ctx.project.escenarios || { optimistaPct:15, pesimistaPct:20 };
+  const cols = ['', 'Optimista (+' + String(esc.optimistaPct).replace('.', ',') + ' %)', 'Realista', 'Pesimista (−' + String(esc.pesimistaPct).replace('.', ',') + ' %)'];
+  const f = (k) => [a.optimista[k], a.realista[k], a.pesimista[k]];
+  const filas = [
+    ['Facturación'].concat(f('facturacion').map(Informe.eur)),
+    ['Margen bruto'].concat(f('margenBruto').map(Informe.eur)),
+    ['Costes fijos'].concat(f('costesFijosAnuales').map(Informe.eur)),
+    ['Impuestos'].concat(f('impuestos').map(Informe.eur)),
+    ['Beneficio neto/año'].concat(f('beneficioNeto').map(Informe.eur)),
+    ['Beneficio neto/mes'].concat(f('beneficioNeto').map(v => Informe.eur(v / 12)))
+  ];
+  const kids = [
+    UI.el('h2', null, '3 · Escenarios'),
+    UI.el('p', { class:'inf-suave' }, 'Tu previsión (realista) con un margen arriba y abajo para ver el mejor y el peor caso. Los gastos variables y semi-fijos escalan con las ventas.'),
+    Informe.tabla(cols, filas),
+    Informe.svgBarrasEscenarios([
+      { etq:'Optimista', val: a.optimista.beneficioNeto / 12 },
+      { etq:'Realista', val: a.realista.beneficioNeto / 12 },
+      { etq:'Pesimista', val: a.pesimista.beneficioNeto / 12 }
+    ])
+  ];
+  const tipos = new Set(ctx.project.calendario || []);
+  if (tipos.size > 1) {
+    const t = ctx.temporadas, fac = ctx.project.facturacion || {};
+    kids.push(UI.el('h3', null, 'Por temporada (realista)'));
+    kids.push(Informe.tabla(['Temporada', 'Meses/año', 'Beneficio €/mes'], [
+      ['Fuerte', String(fac.nBuenos || 0), Informe.eur(t.fuertes.benefMes)],
+      ['Media', String(fac.nNormales || 0), Informe.eur(t.medios.benefMes)],
+      ['Floja', String(fac.nMalos || 0), Informe.eur(t.flojos.benefMes)]
+    ]));
+  }
+  return UI.el('section', { class:'inf-seccion' }, kids);
+};
+
+Informe.sCostes = function (ctx) {
+  const real = ctx.a.realista;
+  const p = ctx.project;
+  const ventasMes = ctx.a.base / 12;
+  const gastos = [];
+  if (real.costeMercancia > 0) gastos.push({ concepto:'Mercancía / materiales', mes: real.costeMercancia / 12 });
+  if (real.merma > 0) gastos.push({ concepto:'Merma, regalos e impagos', mes: real.merma / 12 });
+  const personalMes = Engine.costePersonalMensual(p);
+  if (personalMes > 0) gastos.push({ concepto:'Personal (con SS y 14 pagas)', mes: personalMes });
+  const sueldo = p.propietario ? (Number(p.propietario.sueldoMes) || 0) : 0;
+  if (sueldo > 0) gastos.push({ concepto:'Tu sueldo', mes: sueldo });
+  (p.costesFijos || []).forEach(c => { const imp = Number(c.importe) || 0; if (imp > 0) gastos.push({ concepto: c.concepto || 'Gasto fijo', mes: imp }); });
+  if (real.impuestos > 0) gastos.push({ concepto:'Impuestos', mes: real.impuestos / 12 });
+  gastos.sort((x, y) => y.mes - x.mes);
+  return UI.el('section', { class:'inf-seccion' }, [
+    UI.el('h2', null, '4 · Dónde va el dinero'),
+    UI.el('p', { class:'inf-suave' }, 'Reparto de cada euro de ventas en el escenario realista.'),
+    Informe.svgApilada(real),
+    real.beneficioNeto < 0 ? UI.el('p', { class:'inf-alerta' }, 'Ojo: los gastos superan las ventas — la barra reparte el gasto total y la pérdida es de ' + Informe.eur(-real.beneficioNeto) + '/año.') : null,
+    UI.el('h3', null, 'Los gastos con mayor impacto'),
+    Informe.tabla(['Gasto', '€/mes', '% de las ventas'],
+      gastos.slice(0, 5).map(g => [g.concepto, Informe.eur(g.mes), ventasMes > 0 ? Informe.pct1(g.mes / ventasMes * 100) : '—']))
+  ]);
+};
+
+Informe.sSector = function (ctx) {
+  const b = ctx.benchmarks || {};
+  const a = ctx.a, p = ctx.project;
+  const filas = [];
+  const fmtPct = v => (Number(v) || 0).toFixed(0) + ' %';
+  const fmtAnios = v => (Number(v) || 0).toFixed(1).replace('.', ',') + ' años';
+  const fila = (etq, val, rango, fmt) => {
+    if (val == null || rango == null) {
+      filas.push([etq, val == null ? '—' : fmt(val), rango ? fmt(rango[0]) + ' – ' + fmt(rango[1]) : '—', Informe.semaforo('neutro', 'sin datos')]);
+      return;
+    }
+    const encima = val > rango[1];
+    filas.push([etq, fmt(val), fmt(rango[0]) + ' – ' + fmt(rango[1]),
+      Informe.semaforo(encima ? 'rojo' : 'verde', encima ? 'por encima' : 'dentro')]);
+  };
+  fila('Coste de mercancía / ventas', a.realista.costeMercanciaPct, b.costeMercanciaPct, fmtPct);
+  fila('Merma / ventas', Number(p.mermaPct) || 0, b.mermaPct, fmtPct);
+  const alquiler = (p.costesFijos || []).find(c => /alquiler/i.test(c.concepto || ''));
+  fila('Alquiler / ventas', (alquiler && a.base > 0) ? (Number(alquiler.importe) || 0) * 12 / a.base * 100 : null, b.alquilerSobreVentasPct, fmtPct);
+  const personalAnual = Engine.costePersonalAnual(p);
+  fila('Personal / ventas', (personalAnual > 0 && a.base > 0) ? personalAnual / a.base * 100 : null, b.personalSobreVentasPct, fmtPct);
+  fila('Payback de la inversión', (a.inversion && isFinite(a.inversion.paybackAnios)) ? a.inversion.paybackAnios : null, b.paybackAnios, fmtAnios);
+  const esGenerico = p.sector === 'generico' || (typeof p.sector === 'string' && p.sector.indexOf('personalizada:') === 0);
+  const nota = esGenerico
+    ? 'Sin sector concreto los rangos son genéricos: tómalos solo como referencia amplia.'
+    : 'Rangos orientativos habituales del sector; cada negocio es un mundo.';
+  return UI.el('section', { class:'inf-seccion' }, [
+    UI.el('h2', null, '5 · Comparativa con el sector'),
+    Informe.tabla(['Ratio', 'Tu proyecto', 'Rango orientativo', ''], filas),
+    UI.el('p', { class:'inf-suave' }, nota)
+  ]);
+};
+
+Informe.sPuntos = function (ctx) {
+  const a = ctx.a, vf = ctx.vf;
+  const fuertes = [];
+  vf.dimensiones.filter(d => d.estado === 'verde').forEach(d => fuertes.push(d.etiqueta + ': ' + d.texto));
+  const ms = a.breakeven.margenSeguridadPct;
+  if (isFinite(ms) && ms >= 25) fuertes.push('Margen de seguridad holgado (' + Informe.pct1(ms) + '): aguantas meses flojos.');
+  if (a.realista.beneficioNeto > 0 && a.pesimista.beneficioNeto >= 0) fuertes.push('Incluso en un mal año no entras en pérdidas.');
+  if (a.inversion && isFinite(a.inversion.paybackAnios) && ctx.benchmarks.paybackAnios && a.inversion.paybackAnios <= ctx.benchmarks.paybackAnios[1])
+    fuertes.push('Recuperas la inversión en ' + a.inversion.paybackAnios.toFixed(1).replace('.', ',') + ' años, dentro de lo normal del sector.');
+
+  const debiles = [];
+  vf.rebajas.forEach(r => debiles.push(r));
+  vf.avisos.forEach(t => debiles.push(t));
+  ctx.objetivos.filter(o2 => o2.prioridad === 'alta').forEach(o2 => { if (!debiles.includes(o2.texto)) debiles.push(o2.texto); });
+
+  const marcados = ctx.project.riesgosMarcados || [];
+  const pendientes = [];
+  (ctx.catRiesgos || []).forEach(cat => (cat.items || []).forEach(it => { if (!marcados.includes(it.id)) pendientes.push(it.texto); }));
+
+  const lista = (items, vacio) => items.length
+    ? UI.el('ul', { class:'inf-lista' }, items.map(t => UI.el('li', null, t)))
+    : UI.el('p', { class:'inf-suave' }, vacio);
+
+  return UI.el('section', { class:'inf-seccion' }, [
+    UI.el('h2', null, '6 · Puntos fuertes, débiles y riesgos'),
+    UI.el('h3', null, '✔ Puntos fuertes'),
+    lista(fuertes, 'No hay señales claramente positivas todavía.'),
+    UI.el('h3', null, '✖ Puntos débiles'),
+    lista(debiles, 'Sin debilidades destacables con los datos actuales.'),
+    UI.el('h3', null, '⚠ Riesgos pendientes de validar (' + ctx.validacion.hechos + '/' + ctx.validacion.total + ' comprobados)'),
+    pendientes.length
+      ? UI.el('ul', { class:'inf-lista' }, pendientes.slice(0, 8).map(t => UI.el('li', null, t)).concat(
+          pendientes.length > 8 ? [UI.el('li', { class:'inf-suave' }, '… y ' + (pendientes.length - 8) + ' más en la pestaña Riesgos.')] : []))
+      : UI.el('p', { class:'inf-suave' }, 'Checklist completo: todo validado.')
+  ]);
+};
+
+Informe.sPlan = function (ctx) {
+  const plan = ctx.plan;
+  const kids = [UI.el('h2', null, '7 · Plan de acción')];
+  if (ctx.objetivos.length) {
+    kids.push(UI.el('h3', null, 'Acciones priorizadas'));
+    kids.push(UI.el('ol', { class:'inf-lista' }, ctx.objetivos.map(o2 =>
+      UI.el('li', null, o2.texto + (o2.impactoAnual != null ? ' (+' + Informe.eur(o2.impactoAnual) + '/año)' : '')))));
+  }
+  kids.push(UI.el('h3', null, plan.viableYa ? 'Cómo mejorar aún más' : 'Camino a la viabilidad'));
+  kids.push(UI.el('p', { class: (plan.alcanzaViabilidad || plan.viableYa) ? '' : 'inf-alerta' }, plan.resumen));
+  if (plan.pasos.length) {
+    kids.push(Informe.tabla(['#', 'Acción', 'Impacto'], plan.pasos.map((paso, i) =>
+      [String(i + 1), paso.descripcion, (paso.impactoMes >= 0 ? '+' : '') + Informe.eur(paso.impactoMes) + '/mes'])));
+    kids.push(UI.el('div', { class:'inf-antes-despues' }, [
+      UI.el('div', { class:'inf-ad__caja' }, [
+        UI.el('div', { class:'inf-ind__etq' }, 'Hoy'),
+        UI.el('div', { class:'inf-ind__val' + (plan.antes.netoMes < 0 ? ' inf-neg' : '') }, Informe.eur(plan.antes.netoMes) + '/mes')]),
+      UI.el('div', { class:'inf-ad__flecha' }, '→'),
+      UI.el('div', { class:'inf-ad__caja' }, [
+        UI.el('div', { class:'inf-ind__etq' }, 'Con el plan'),
+        UI.el('div', { class:'inf-ind__val' + (plan.despues.netoMes < 0 ? ' inf-neg' : '') }, Informe.eur(plan.despues.netoMes) + '/mes')])
+    ]));
+  }
+  return UI.el('section', { class:'inf-seccion inf-plan' }, kids);
+};
+
+Informe.sConclusiones = function (ctx) {
+  const frases = [];
+  const nivel = ctx.vf.nivel;
+  if (nivel === 'adelante') frases.push('Los números sostienen el proyecto: es rentable en el escenario realista y aguanta un año malo.');
+  else if (nivel === 'negocia') frases.push('El proyecto puede funcionar, pero va justo: negocia condiciones (alquiler, proveedores) y revisa los puntos débiles antes de comprometerte.');
+  else frases.push('Con los datos actuales el proyecto no se sostiene: no lo firmes tal cual.');
+  if (!ctx.plan.viableYa) frases.push(ctx.plan.alcanzaViabilidad
+    ? 'El plan de acción marca un camino realista hacia la viabilidad; valida esas palancas antes de decidir.'
+    : 'Ni con mejoras plausibles dentro de los rangos del sector sale viable: replantea precio, local o formato.');
+  if (ctx.validacion.total > 0 && ctx.validacion.pct < 80) frases.push('Antes de dar pasos irreversibles, completa el checklist de riesgos (' + ctx.validacion.hechos + '/' + ctx.validacion.total + ').');
+  return UI.el('section', { class:'inf-seccion' }, [
+    UI.el('h2', null, '8 · Conclusiones'),
+    UI.el('p', null, frases.join(' ')),
+    UI.el('p', { class:'inf-nota' }, 'Estimaciones orientativas basadas en los datos introducidos y en rangos estándar del sector; no sustituyen un estudio profesional ni asesoramiento financiero.')
+  ]);
+};
+
+Informe.SECCIONES = [Informe.sPortada, Informe.sResumen, Informe.sVeredicto, Informe.sEscenarios,
+  Informe.sCostes, Informe.sSector, Informe.sPuntos, Informe.sPlan, Informe.sConclusiones];
+
+if (typeof window !== 'undefined') window.Informe = Informe;
 
 </script>
   <script>
