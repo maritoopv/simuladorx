@@ -338,13 +338,15 @@ const Engine = {};
 
 Engine.MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
-// Parser tolerante para inputs de usuario: acepta coma decimal española.
-// Con coma, los puntos anteriores son separadores de miles ("1.234,56" → 1234.56);
-// sin coma, el punto se mantiene como decimal ("3.15" → 3.15, ambiguo pero histórico).
+// Parser tolerante para inputs de usuario: acepta formato español.
+// Con coma, los puntos anteriores son separadores de miles ("1.234,56" → 1234.56).
+// Sin coma, los puntos son miles SOLO si agrupan de 3 en 3 ("12.000" → 12000,
+// "1.234.567" → 1234567); si no, el punto es decimal ("3.15" → 3.15, "1.2345" → 1.2345).
 Engine.parseNum = function (v) {
   if (typeof v === 'number') return isFinite(v) ? v : 0;
   let s = String(v == null ? '' : v).trim();
   if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
   const n = parseFloat(s);
   return isNaN(n) ? 0 : n;
 };
@@ -1782,6 +1784,7 @@ UI.bloqueMargen = function (project) {
 UI.gastoAbierto = null;   // índice del gasto desplegado (persiste entre repintados)
 UI.zonaMasAbierto = false;   // "Más factores" de Zona abierto (persiste entre repintados)
 UI.obsDetalleAbierto = null; // id de la visita con "Más detalle" abierto (ídem)
+UI.invDetalleAbierto = false; // desglose de inversión abierto (Datos y paso del guiado)
 
 UI.bloqueCostesFijos = function (project) {
   const card = UI.el('div',{class:'card'},[UI.el('h2',null,'Gastos fijos (€/mes)')]);
@@ -2091,7 +2094,8 @@ UI.renderDatos = function (project, cont) {
   cont.appendChild(UI.bloquePersonal(project));
 
   // Inversión, impuestos, IVA, escenarios
-  const detallesInversion = UI.el('details',null,[
+  const detallesInversion = UI.el('details',{...(UI.invDetalleAbierto ? {open:''} : {}),
+    ontoggle:(e)=>{ if (e.target === e.currentTarget) UI.invDetalleAbierto = e.target.open; }},[
     UI.el('summary',null,'Estimar mi inversión'),
     UI.estimadorInversion(project)
   ]);
@@ -2773,6 +2777,11 @@ Guia.render = function (project) {
     card.appendChild(UI.el('h2',null,'¿Cuánto te cuesta arrancar?'));
     card.appendChild(UI.el('div',{class:'microayuda'}, ayuda.inversionInicial));
     card.appendChild(UI.campo(project,'Inversión inicial (€)',project,'inversionInicial','number',null,'40000'));
+    card.appendChild(UI.el('details',{class:'mas-detalle', ...(UI.invDetalleAbierto ? {open:''} : {}),
+      ontoggle:(e)=>{ if (e.target === e.currentTarget) UI.invDetalleAbierto = e.target.open; }},[
+      UI.el('summary',null,'O súmala por partes (obras, maquinaria, fianza…)'),
+      UI.estimadorInversion(project)
+    ]));
   } else if (paso === 'escenarios') {
     card.appendChild(UI.el('h2',null,'¿Y si va mejor o peor de lo previsto?'));
     card.appendChild(UI.el('div',{class:'microayuda'},'Definimos un margen arriba y abajo de tu previsión para ver el mejor y el peor caso. Lo normal: optimista +15 %, pesimista −20 %.'));
@@ -3361,7 +3370,7 @@ App.modo = 'lista';                 // lista | proyecto | guia | comparador
 App.tab  = 'datos';                 // datos | escenarios | riesgos
 
 App.verLista     = function(){ App.modo='lista'; App.render(); };
-App.abrirProyecto = function(id){ if (id) App.state.activoId = id; App.modo='proyecto'; App.tab='datos'; if (window.UI) { UI.escenarioSel='base'; UI.gastoAbierto=null; UI.zonaMasAbierto=false; UI.obsDetalleAbierto=null; } Storage.guardar(App.state); App.render(); };
+App.abrirProyecto = function(id){ if (id) App.state.activoId = id; App.modo='proyecto'; App.tab='datos'; if (window.UI) { UI.escenarioSel='base'; UI.gastoAbierto=null; UI.zonaMasAbierto=false; UI.obsDetalleAbierto=null; UI.invDetalleAbierto=false; } Storage.guardar(App.state); App.render(); };
 App.irATab       = function(tab){ App.tab = tab; App.render(); };
 App.verComparador = function(){ App.modo='comparador'; if (window.UI) UI.comparadorSeleccion = App.state.proyectos.map(p=>p.id); App.render(); };
 App.verProyecto   = function(){ App.modo='proyecto'; App.render(); };
