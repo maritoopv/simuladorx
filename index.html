@@ -2093,22 +2093,22 @@ UI.renderDatos = function (project, cont) {
   // Personal (empleados)
   cont.appendChild(UI.bloquePersonal(project));
 
-  // Inversión, impuestos, IVA, escenarios
-  const detallesInversion = UI.el('details',{...(UI.invDetalleAbierto ? {open:''} : {}),
+  // Inversión, impuestos, IVA, escenarios — el desglose va PEGADO al campo de inversión
+  const detallesInversion = UI.el('details',{class:'mas-detalle', ...(UI.invDetalleAbierto ? {open:''} : {}),
     ontoggle:(e)=>{ if (e.target === e.currentTarget) UI.invDetalleAbierto = e.target.open; }},[
-    UI.el('summary',null,'Estimar mi inversión'),
+    UI.el('summary',null,'O súmala por partes (obras, maquinaria, fianza…)'),
     UI.estimadorInversion(project)
   ]);
   cont.appendChild(UI.el('div',{class:'card'},[
     UI.el('h2',null,'Inversión e impuestos'),
+    UI.campo(project,'Inversión inicial (€)',project,'inversionInicial','number','inversionInicial','40000'),
+    detallesInversion,
     UI.el('div',{class:'grid-2'},[
-      UI.campo(project,'Inversión inicial (€)',project,'inversionInicial','number','inversionInicial','40000'),
       UI.campo(project,'Impuesto sobre beneficio (%)',project,'impuestoPct','number','impuestoPct'),
       UI.campo(project,'IVA (%)',project,'ivaPct','number','ivaPct'),
       UI.campo(project,'Escenario optimista (+%)',project.escenarios,'optimistaPct'),
       UI.campo(project,'Escenario pesimista (−%)',project.escenarios,'pesimistaPct')
-    ]),
-    detallesInversion
+    ])
   ]));
 
   // Tu sueldo y tus horas
