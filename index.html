@@ -2831,6 +2831,10 @@ const Informe = {};
 Informe.eur = n => Math.round(Number(n) || 0).toLocaleString('es-ES') + ' €';
 Informe.pct1 = n => (Number(n) || 0).toFixed(1).replace('.', ',') + ' %';
 Informe.COLOR = { verde:'#2e7d32', ambar:'#b26a00', rojo:'#c62828', neutro:'#8a8f98', tinta:'#1c1e21', suave:'#5f6570' };
+// En el informe el veredicto usa terminología sobria de estudio de viabilidad
+// (la app mantiene su tono directo "Adelante / Negocia o revisa / Descártalo").
+Informe.VEREDICTO = { adelante:'Proyecto viable', negocia:'Viable con reservas', descarta:'No viable' };
+Informe.tituloVeredicto = vf => Informe.VEREDICTO[vf.nivel] || vf.titulo;
 
 Informe.nombreSector = function (sector) {
   const s = (Templates.SECTORES || []).find(x => x.id === sector);
@@ -2912,7 +2916,7 @@ Informe.sPortada = function (ctx) {
     UI.el('div', { class:'inf-portada__sub' }, 'Estudio de viabilidad · ' + ctx.sectorNombre),
     UI.el('div', { class:'inf-portada__fecha' }, ctx.fecha),
     UI.el('div', { class:'inf-portada__veredicto', style:'border-color:' + c + ';color:' + c }, [
-      UI.el('span', { class:'inf-punto', style:'background:' + c }), ctx.vf.titulo]),
+      UI.el('span', { class:'inf-punto', style:'background:' + c }), Informe.tituloVeredicto(ctx.vf)]),
     UI.el('div', { class:'inf-portada__pie' }, 'Informe generado automáticamente con SimuladorX a partir de los datos introducidos.')
   ]);
 };
@@ -2926,7 +2930,7 @@ Informe.sResumen = function (ctx) {
   frases.push('El proyecto "' + (ctx.project.nombre || 'sin nombre') + '" (' + ctx.sectorNombre.toLowerCase() + ') prevé facturar ' + Informe.eur(a.base) + ' al año.');
   frases.push('En el escenario realista deja ' + Informe.eur(real.beneficioNeto / 12) + ' netos al mes (' + Informe.eur(real.beneficioNeto) + '/año), con un margen neto del ' + Informe.pct1(real.margenNetoPct) + '.');
   if (beMes != null) frases.push('Necesita ' + Informe.eur(beMes) + '/mes para cubrir costes' + (isFinite(ms) && ms >= 0 ? ', lo que deja un margen de seguridad del ' + Informe.pct1(ms) : ', por encima de lo que prevé facturar') + '.');
-  frases.push('Veredicto global: ' + ctx.vf.titulo.toLowerCase() + ', con un índice de riesgo de ' + ctx.riesgo.valor + '/100 (' + ({ baja:'bajo', media:'medio', alta:'alto' })[ctx.riesgo.banda] + ').');
+  frases.push('Veredicto global: ' + Informe.tituloVeredicto(ctx.vf).toLowerCase() + ', con un índice de riesgo de ' + ctx.riesgo.valor + '/100 (' + ({ baja:'bajo', media:'medio', alta:'alto' })[ctx.riesgo.banda] + ').');
   if (!ctx.plan.viableYa) frases.push(ctx.plan.alcanzaViabilidad
     ? 'Hay un camino realista hacia la viabilidad (ver Plan de acción).'
     : 'Con mejoras plausibles no llega a viable: hay que replantear el modelo (ver Plan de acción).');
@@ -3053,7 +3057,7 @@ Informe.sVeredicto = function (ctx) {
     UI.el('h2', null, '2 · Veredicto y riesgo'),
     UI.el('div', { class:'inf-veredicto' }, [
       UI.el('div', null, [
-        UI.el('div', { class:'inf-veredicto__titulo', style:'color:' + (col[ctx.vf.color] || col.neutro) }, ctx.vf.titulo),
+        UI.el('div', { class:'inf-veredicto__titulo', style:'color:' + (col[ctx.vf.color] || col.neutro) }, Informe.tituloVeredicto(ctx.vf)),
         UI.el('p', { class:'inf-suave' }, (ctx.vf.rebajas && ctx.vf.rebajas.length) ? ctx.vf.rebajas[0] : ctx.a.verdict.motivo),
         dims
       ]),
