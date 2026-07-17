@@ -295,6 +295,16 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15
 .opcion-cob__txt{flex:1;min-width:0}
 .opcion-cob__coste{white-space:nowrap;font-weight:600}
 
+/* ---- Cuadrante de personal por temporada ---- */
+.cuad-scroll{overflow-x:auto}
+.cuad{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
+.cuad th{text-align:center;font-size:12px;color:var(--muted);padding:6px 4px;border-bottom:1px solid var(--border);white-space:nowrap}
+.cuad th:first-child,.cuad td:first-child{text-align:left}
+.cuad td{padding:6px 4px;text-align:center;border-bottom:1px solid var(--border)}
+.cuad__num{width:56px;text-align:center}
+.cuad__ref td{color:var(--muted);font-size:13px}
+.cuad__total td{font-weight:600}
+
 </style>
 </head>
 <body>
@@ -432,10 +442,37 @@ Engine.costeRefuerzosMensual = function (project) {
   return ((project && project.refuerzos) || []).reduce((s, r) => s + Engine.costeRefuerzo(r, ssPct).costeMes, 0);
 };
 
-Engine.costePersonalMensual = function (project) {
+// Nº de personas de un empleado en un tipo de mes ('B'|'N'|'M').
+// porTemporada es OPCIONAL: si falta (todos los proyectos antiguos), vale numero
+// en las tres temporadas — retrocompatibilidad total.
+Engine.numeroEnTemporada = function (emp, tipo) {
+  const pt = emp && emp.porTemporada;
+  if (pt && pt[tipo] != null && isFinite(Number(pt[tipo]))) return Number(pt[tipo]);
+  return Number(emp && emp.numero) || 0;
+};
+
+// Coste de personal de un mes según su tipo de temporada. Los refuerzos siguen
+// repartidos en 12 (decisión de spec: su coste no cambia).
+Engine.costePersonalMensualTipo = function (project, tipo) {
   const ssPct = Number(project.ssPct) || 0;
-  const empleados = (project.empleados || []).reduce((s, e) => s + Engine.costeEmpleado(e, ssPct).costeMes, 0);
+  const empleados = (project.empleados || []).reduce((s, e) =>
+    s + Engine.costeEmpleado(Object.assign({}, e, { numero: Engine.numeroEnTemporada(e, tipo) }), ssPct).costeMes, 0);
   return empleados + Engine.costeRefuerzosMensual(project);
+};
+
+// Media anual del personal según el calendario (la plantilla puede variar por
+// temporada). Sin porTemporada los tres tipos cuestan igual → valor idéntico al
+// histórico. costePersonalAnual (=×12) y computeScenario cuadran solos.
+Engine.costePersonalMensual = function (project) {
+  const cal = (project.calendario && project.calendario.length === 12)
+    ? project.calendario : Array(12).fill('N');
+  const porTipo = {};
+  let suma = 0;
+  for (const t of cal) {
+    if (porTipo[t] == null) porTipo[t] = Engine.costePersonalMensualTipo(project, t);
+    suma += porTipo[t];
+  }
+  return suma / 12;
 };
 
 Engine.costePersonalAnual = function (project) {
@@ -533,11 +570,13 @@ Engine.escalaCoste = function (tipo, m) {
   return 1;
 };
 
-Engine.costesFijosMensuales = function (project, m) {
+Engine.costesFijosMensuales = function (project, m, tipo) {
   const lista = (project.costesFijos || []).reduce(
     (s, c) => s + (Number(c.importe) || 0) * Engine.escalaCoste(c.tipo, m == null ? 1 : m), 0);
   const sueldo = project.propietario ? (Number(project.propietario.sueldoMes)||0) : 0;
-  return lista + sueldo + Engine.costePersonalMensual(project);
+  const personal = tipo ? Engine.costePersonalMensualTipo(project, tipo)
+                        : Engine.costePersonalMensual(project);
+  return lista + sueldo + personal;
 };
 
 Engine.computeScenario = function (project, m) {
@@ -600,10 +639,10 @@ Engine.cashflow = function (project, m) {
   const mermaPct = Number(project.mermaPct) || 0;
   const margenContribucionPct = 100 - cmPct - mermaPct;
   const sc = Engine.computeScenario(project, m);
-  const costesFijosMes = sc.costesFijosAnuales / 12;
   const impuestosMes = sc.impuestos / 12;
   const cal = (project.calendario && project.calendario.length === 12) ? project.calendario : Array(12).fill('N');
-  const cajaMes = cal.map(t => (valorMes[t]||0) * m * margenContribucionPct/100 - costesFijosMes - impuestosMes);
+  const cajaMes = cal.map(t => (valorMes[t]||0) * m * margenContribucionPct/100
+    - Engine.costesFijosMensuales(project, m, t) - impuestosMes);
   const acumulada = [];
   let run = -(Number(project.inversionInicial)||0);
   let minPoint = run, minMonth = -1;
@@ -749,25 +788,24 @@ Engine.resultadoPorTemporada = function (project, m) {
   const cmPct = Engine.costeMercanciaPct(project.margen);
   const mermaPct = Number(project.mermaPct) || 0;
   const margenContribucionPct = 100 - cmPct - mermaPct;
-  const costesFijosMes = Engine.costesFijosMensuales(project, mult);
   const f = project.facturacion || {};
-  const benefMes = (facturacionTipo) =>
-    (Number(facturacionTipo) || 0) * mult * margenContribucionPct / 100 - costesFijosMes;
+  const benefMes = (facturacionTipo, tipo) =>
+    (Number(facturacionTipo) || 0) * mult * margenContribucionPct / 100
+    - Engine.costesFijosMensuales(project, mult, tipo);
   return {
-    fuertes: { benefMes: benefMes(f.mesBueno) },
-    medios:  { benefMes: benefMes(f.mesNormal) },
-    flojos:  { benefMes: benefMes(f.mesMalo) }
+    fuertes: { benefMes: benefMes(f.mesBueno, 'B') },
+    medios:  { benefMes: benefMes(f.mesNormal, 'N') },
+    flojos:  { benefMes: benefMes(f.mesMalo, 'M') }
   };
 };
 
 Engine.personalSobreVentas = function (project) {
-  const costeMes = Engine.costePersonalMensual(project);
   const f = project.facturacion || {};
-  const ratio = (facturacionTipo) => {
+  const ratio = (facturacionTipo, tipo) => {
     const fac = Number(facturacionTipo) || 0;
-    return fac > 0 ? costeMes / fac * 100 : 0;
+    return fac > 0 ? Engine.costePersonalMensualTipo(project, tipo) / fac * 100 : 0;
   };
-  return { verano: ratio(f.mesBueno), invierno: ratio(f.mesMalo) };
+  return { verano: ratio(f.mesBueno, 'B'), invierno: ratio(f.mesMalo, 'M') };
 };
 
 Engine.semanasTemporadaFuerte = function (project) {
@@ -1921,6 +1959,57 @@ UI.estimadorInversion = function (project) {
   return wrap;
 };
 
+// Cuadrante por temporada: nº de personas por tipo de mes (B/N/M) editable por
+// empleado; refuerzos informativos; totales €/mes y % sobre ventas con semáforo.
+UI.cuadrantePersonal = function (project) {
+  const emps = project.empleados || [];
+  if (!emps.length) return null;
+  const f = project.facturacion || {};
+  const TIPOS = [['B','🔥 Fuerte', Number(f.nBuenos)||0], ['N','➖ Media', Number(f.nNormales)||0], ['M','🧊 Floja', Number(f.nMalos)||0]];
+  const card = UI.el('div',{class:'card'},[
+    UI.el('h2',null,'Cuadrante por temporada'),
+    UI.el('div',{class:'microayuda'},'El nº de la ficha del empleado es el punto de partida; aquí lo ajustas por temporada (0 = no está). El calendario decide qué meses usan cada columna.')
+  ]);
+  const tabla = UI.el('table',{class:'cuad'});
+  tabla.appendChild(UI.el('thead',null,UI.el('tr',null,
+    [UI.el('th',null,'')].concat(TIPOS.map(([,lab,n]) => UI.el('th',null,lab+' ('+n+')'))))));
+  const tbody = UI.el('tbody');
+  emps.forEach((emp) => {
+    const etq = (emp.puesto || 'Empleado') + (Number(emp.horasSemana) ? ' · '+emp.horasSemana+'h' : '');
+    tbody.appendChild(UI.el('tr',null,[UI.el('td',null,etq)].concat(TIPOS.map(([t]) =>
+      UI.el('td',null,UI.el('input',{type:'text',inputmode:'decimal',class:'cuad__num',
+        value: Engine.numeroEnTemporada(emp, t),
+        oninput:(e)=>{
+          const pt = { B: Engine.numeroEnTemporada(emp,'B'), N: Engine.numeroEnTemporada(emp,'N'), M: Engine.numeroEnTemporada(emp,'M') };
+          pt[t] = Math.max(0, Engine.parseNum(e.target.value));
+          emp.porTemporada = pt;
+          App.guardarDebounced(); App.refrescarTab();
+        }}))))));
+  });
+  (project.refuerzos||[]).forEach(r => {
+    const en = (r.cuando === 'verano' || r.cuando === 'temporada_fuerte') ? ['B'] : ['B','N','M'];
+    tbody.appendChild(UI.el('tr',{class:'cuad__ref'},
+      [UI.el('td',null,(r.concepto||'Refuerzo')+' · '+(Number(r.horasSemana)||0)+'h (refuerzo)')].concat(
+        TIPOS.map(([t]) => UI.el('td',null, en.includes(t) ? '✓' : '—')))));
+  });
+  const b = Templates.benchmarks(project.sector);
+  const tope = (b.personalSobreVentasPct && b.personalSobreVentasPct[1] != null) ? b.personalSobreVentasPct[1] : 35;
+  const ventas = { B: Number(f.mesBueno)||0, N: Number(f.mesNormal)||0, M: Number(f.mesMalo)||0 };
+  tbody.appendChild(UI.el('tr',{class:'cuad__total'},
+    [UI.el('td',null,'Personal €/mes')].concat(TIPOS.map(([t]) =>
+      UI.el('td',null, UI.eur(Engine.costePersonalMensualTipo(project, t)))))));
+  tbody.appendChild(UI.el('tr',null,[UI.el('td',null,'% sobre ventas')].concat(TIPOS.map(([t]) => {
+    if (ventas[t] <= 0) return UI.el('td',null,'—');
+    const pct = Engine.costePersonalMensualTipo(project, t) / ventas[t] * 100;
+    return UI.el('td',null,[UI.el('span',{class:'punto punto--'+(pct > tope ? 'rojo' : 'verde')}), pct.toFixed(0)+' %']);
+  }))));
+  tabla.appendChild(tbody);
+  card.appendChild(UI.el('div',{class:'cuad-scroll'},[tabla]));
+  card.appendChild(UI.el('div',{class:'microayuda'},
+    'Tope orientativo del sector: '+tope+' % de las ventas. Los refuerzos se muestran donde aplican; su coste va repartido en el año.'));
+  return card;
+};
+
 UI.bloquePersonal = function (project) {
   const ssPct = Number(project.ssPct) || 0;
   const smi = Templates.SMI();
@@ -2081,10 +2170,14 @@ UI.bloquePersonal = function (project) {
   refCard.appendChild(UI.el('div',{class:'kpi'+(refMes>0?'':' muted')},'Refuerzos: '+UI.eur(refMes)+'/mes'));
   card.appendChild(refCard);
 
+  // Cuadrante por temporada (solo si hay empleados)
+  const cuadrante = UI.cuadrantePersonal(project);
+  if (cuadrante) card.appendChild(cuadrante);
+
   // Totales
   const totalMes = Engine.costePersonalMensual(project);
   card.appendChild(UI.el('div',{class:'kpi'+(totalMes>0?'':' muted')},
-    'Coste total de personal: '+UI.eur(totalMes)+'/mes · '+UI.eur(Engine.costePersonalAnual(project))+'/año'));
+    'Coste total de personal: '+UI.eur(totalMes)+'/mes (media anual) · '+UI.eur(Engine.costePersonalAnual(project))+'/año'));
 
   return card;
 };
@@ -3179,10 +3272,10 @@ Informe.sEscenarios = function (ctx) {
   if (tipos.size > 1) {
     const t = ctx.temporadas, fac = ctx.project.facturacion || {};
     kids.push(UI.el('h3', null, 'Por temporada (realista)'));
-    kids.push(Informe.tabla(['Temporada', 'Meses/año', 'Beneficio €/mes'], [
-      ['Fuerte', String(fac.nBuenos || 0), Informe.eur(t.fuertes.benefMes)],
-      ['Media', String(fac.nNormales || 0), Informe.eur(t.medios.benefMes)],
-      ['Floja', String(fac.nMalos || 0), Informe.eur(t.flojos.benefMes)]
+    kids.push(Informe.tabla(['Temporada', 'Meses/año', 'Personal €/mes', 'Beneficio €/mes'], [
+      ['Fuerte', String(fac.nBuenos || 0), Informe.eur(Engine.costePersonalMensualTipo(ctx.project, 'B')), Informe.eur(t.fuertes.benefMes)],
+      ['Media', String(fac.nNormales || 0), Informe.eur(Engine.costePersonalMensualTipo(ctx.project, 'N')), Informe.eur(t.medios.benefMes)],
+      ['Floja', String(fac.nMalos || 0), Informe.eur(Engine.costePersonalMensualTipo(ctx.project, 'M')), Informe.eur(t.flojos.benefMes)]
     ]));
   }
   return UI.el('section', { class:'inf-seccion' }, kids);
