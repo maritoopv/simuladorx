@@ -289,6 +289,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15
   .inf-plan{break-before:page}
 }
 
+/* ---- Comparativo de cobertura de personal ---- */
+.opcion-cob{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.opcion-cob:last-of-type{border-bottom:none}
+.opcion-cob__txt{flex:1;min-width:0}
+.opcion-cob__coste{white-space:nowrap;font-weight:600}
+
 </style>
 </head>
 <body>
@@ -445,6 +451,63 @@ Engine.coberturaEmpleados = function (opts) {
   const horasSemana = horasDia * dias * personas;
   const empleadosNecesarios = (jornada > 0 && horasSemana > 0) ? Math.ceil(horasSemana / jornada) : 0;
   return { horasSemana, empleadosNecesarios };
+};
+
+// Opciones realistas de plantilla para cubrir H horas/semana (jornada 40 h).
+// "n a jornada completa" infla el coste cuando H no es múltiplo de 40: para 54 h
+// propone 1×40+parcial de 14, 2 parciales de 27, o 1×40+refuerzo de 14 h/sem.
+// opts = { salarioRefMes, eurHoraRef, ssPct }. Ordenadas por coste mensual.
+Engine.opcionesCobertura = function (horasSemana, opts) {
+  const H = Number(horasSemana) || 0;
+  if (H <= 0) return [];
+  const o = opts || {};
+  const J = 40;
+  const salarioRef = Number(o.salarioRefMes) || 1300;
+  const eurHora = Number(o.eurHoraRef) || Math.round(salarioRef / 173.3);
+  const ssPct = Number(o.ssPct) || 0;
+  const nCompletos = Math.floor(H / J);
+  const resto = Math.round((H - nCompletos * J) * 10) / 10;
+  const empleado = (n, h) => ({ puesto:'', numero:n, horasSemana:h, sueldoBrutoMes: Math.round(salarioRef * h / J) });
+  const costeEmpleados = emps => emps.reduce((s, e) => s + Engine.costeEmpleado(e, ssPct).costeMes, 0);
+  const out = [];
+
+  if (resto <= 0) {
+    const emps = [empleado(nCompletos, J)];
+    out.push({ clave:'completos', titulo: nCompletos + ' × jornada completa (40 h)',
+      descripcion:'Las horas salen justas con jornadas completas.',
+      empleados: emps, refuerzos: [], costeMes: costeEmpleados(emps) });
+    return out;
+  }
+
+  // Completos + un parcial con las horas que faltan
+  {
+    const emps = [];
+    if (nCompletos > 0) emps.push(empleado(nCompletos, J));
+    emps.push(empleado(1, resto));
+    out.push({ clave:'parcial', titulo: (nCompletos ? nCompletos + ' × 40 h + ' : '') + '1 parcial de ' + resto + ' h',
+      descripcion:'Contrato a tiempo parcial para las horas que faltan.',
+      empleados: emps, refuerzos: [], costeMes: costeEmpleados(emps) });
+  }
+  // Repartir en jornadas parciales iguales
+  const k = nCompletos + 1;
+  if (k > 1) {
+    const h = Math.round(H / k * 10) / 10;
+    const emps = [empleado(k, h)];
+    out.push({ clave:'iguales', titulo: k + ' parciales de ' + String(h).replace('.', ',') + ' h',
+      descripcion:'Reparto en jornadas iguales: más flexibilidad de turnos.',
+      empleados: emps, refuerzos: [], costeMes: costeEmpleados(emps) });
+  }
+  // Completos + refuerzo por horas (sin 14 pagas; pensado para picos)
+  if (nCompletos > 0) {
+    const emps = [empleado(nCompletos, J)];
+    const ref = { concepto:'Refuerzo (horas sueltas)', horasSemana: resto, eurHora, cuando:'finde', semanasAnio: 52 };
+    out.push({ clave:'refuerzo', titulo: nCompletos + ' × 40 h + refuerzo de ' + resto + ' h/sem',
+      descripcion:'Refuerzo por horas todo el año (' + eurHora + ' €/h); ajusta luego las semanas si es solo por picos.',
+      empleados: emps, refuerzos: [ref],
+      costeMes: costeEmpleados(emps) + Engine.costeRefuerzo(ref, ssPct).costeMes });
+  }
+  out.sort((a, b) => a.costeMes - b.costeMes);
+  return out;
 };
 
 Engine.sueldoBajoSMI = function (emp, smiMensual, jornadaHoras) {
@@ -1941,14 +2004,32 @@ UI.bloquePersonal = function (project) {
           o.personasSimultaneas=Engine.parseNum(e.target.value);App.guardarDebounced();App.refrescarTab();
         }})])
     ]),
-    UI.el('div',{class:'kpi'}, cob.horasSemana+' h/semana a cubrir → '+cob.empleadosNecesarios+' empleados a jornada completa'),
-    UI.el('button',{class:'btn',onclick:()=>{
-      const c = Engine.coberturaEmpleados({ horasAbiertasDia:o.horasAbiertasDia, diasSemana:o.diasAbiertosSemana, personasSimultaneas:o.personasSimultaneas, jornadaHoras:40 });
-      project.empleados = project.empleados || [];
-      for (let i=0;i<c.empleadosNecesarios;i++) project.empleados.push({puesto:'',numero:1,horasSemana:40,sueldoBrutoMes:Templates.salarioRefSector(project.sector)});
-      App.guardarDebounced();App.refrescarTab();
-    }},'Crear esos empleados con el sueldo de referencia')
+    UI.el('div',{class:'kpi'}, cob.horasSemana+' h/semana a cubrir')
   ]);
+  // Comparativo de formas realistas de cubrirlas (54 h NO son 2 jornadas completas)
+  const opciones = Engine.opcionesCobertura(cob.horasSemana, {
+    salarioRefMes: Templates.salarioRefSector(project.sector),
+    eurHoraRef: Templates.eurHoraRefSector(project.sector),
+    ssPct: Number(project.ssPct)||0
+  });
+  if (opciones.length) {
+    calc.appendChild(UI.el('div',{class:'microayuda'},
+      'Formas de cubrirlas con el sueldo de referencia del sector ('+Templates.salarioRefSector(project.sector)+' €/mes a 40 h). Elige la que encaje:'));
+    opciones.forEach(op => calc.appendChild(UI.el('div',{class:'opcion-cob'},[
+      UI.el('div',{class:'opcion-cob__txt'},[
+        UI.el('strong',null,op.titulo),
+        UI.el('div',{class:'microayuda'},op.descripcion)
+      ]),
+      UI.el('div',{class:'opcion-cob__coste'}, UI.eur(op.costeMes)+'/mes'),
+      UI.el('button',{class:'btn',onclick:()=>{
+        project.empleados = (project.empleados||[]).concat(op.empleados.map(e=>Object.assign({},e)));
+        if (op.refuerzos.length) project.refuerzos = (project.refuerzos||[]).concat(op.refuerzos.map(r=>Object.assign({},r)));
+        App.guardarDebounced();App.refrescarTab();
+      }},'Usar')
+    ])));
+    calc.appendChild(UI.el('div',{class:'microayuda'},
+      'Coste empresa con SS incluida (empleados con 14 pagas; el refuerzo va por horas). Luego puedes ajustar cada uno.'));
+  }
   card.appendChild(calc);
 
   // Refuerzos (picos)
