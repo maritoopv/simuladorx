@@ -305,6 +305,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15
 .cuad__ref td{color:var(--muted);font-size:13px}
 .cuad__total td{font-weight:600}
 
+/* ---- Guía: opcionalidad visible ---- */
+.guia__prog{display:flex;align-items:center;gap:8px}
+.guia__opcional{font-size:11px;padding:2px 10px;border-radius:12px;border:1px solid var(--border);color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.guia__salta{margin-top:14px}
+
 </style>
 </head>
 <body>
@@ -2078,7 +2083,7 @@ UI.bloquePersonal = function (project) {
     personasSimultaneas: o.personasSimultaneas, jornadaHoras: 40 });
   const calc = UI.el('div',{class:'card'},[
     UI.el('h2',null,'¿Cuántos empleados necesito?'),
-    UI.el('div',{class:'microayuda'},'Horas que abres × días/semana × personas a la vez = horas a cubrir. Lo divide entre una jornada de 40h.'),
+    UI.el('div',{class:'microayuda'},'Horas que abres × días/semana × personas a la vez = horas a cubrir. Lo divide entre una jornada de 40h. Si algún dato no lo sabes, déjalo vacío.'),
     UI.el('div',{class:'grid-2'},[
       UI.el('div',{class:'field'},[UI.el('label',null,'Horas abiertas/día'),
         UI.el('input',{type:'text',inputmode:'decimal',placeholder:'10',value:o.horasAbiertasDia!=null?o.horasAbiertasDia:'',oninput:(e)=>{
@@ -2297,6 +2302,7 @@ UI.renderDatos = function (project, cont) {
   // Operativa (ticket medio, días)
   cont.appendChild(UI.el('div',{class:'card'},[
     UI.el('h2',null,'Operativa'),
+    UI.el('div',{class:'microayuda'},'Déjalo vacío si aún no lo sabes: estos datos afinan el análisis, no lo bloquean.'),
     UI.el('div',{class:'grid-2'},[
       UI.campo(project,'Ticket medio (€)',o,'ticketMedio','number','ticketMedio','9.5'),
       UI.campo(project,'Días abiertos / semana',o,'diasAbiertosSemana')
@@ -2879,6 +2885,8 @@ UI.renderObservaciones = function (project, cont) {
     project.observaciones.push({ id: Storage.nuevoId(), fecha: '', franja: 'mediodia', metodo: 'A' });
     App.guardarDebounced(); App.refrescarTab();
   } }, '+ Añadir visita');
+  cont.appendChild(UI.el('div', { class: 'microayuda' },
+    'Apunta solo lo que tengas: cualquier campo de una visita puede quedarse vacío.'));
   cont.appendChild(UI.el('div', { class: 'obs-add' }, add));
 };
 
@@ -2890,6 +2898,20 @@ if (typeof window !== 'undefined') window.UI = UI;
 const Guia = {};
 Guia.paso = 0;
 Guia.PASOS = ['sector','facturacion','margen','merma','fijos','personal','sueldo','inversion','zona','observaciones','riesgos','escenarios'];
+// Pasos que NO hacen falta para que salga un resultado: se pueden saltar sin
+// penalizar (el veredicto los trata como "sin datos", neutro).
+Guia.OPCIONALES = ['merma','personal','sueldo','inversion','zona','observaciones','riesgos','escenarios'];
+// ¿El paso está aún sin rellenar? (para ofrecer "No lo sé, saltar")
+Guia.pasoVacio = function (paso, project) {
+  const p = project || {};
+  if (paso === 'personal') return !((p.empleados||[]).length || (p.refuerzos||[]).length);
+  if (paso === 'sueldo') return !(p.propietario && (Number(p.propietario.sueldoMes) || Number(p.propietario.horasSemana)));
+  if (paso === 'inversion') return !Number(p.inversionInicial);
+  if (paso === 'zona') return !Object.keys((p.zona && p.zona.factores) || {}).length;
+  if (paso === 'observaciones') return !(p.observaciones||[]).length;
+  if (paso === 'riesgos') return !(p.riesgosMarcados||[]).length;
+  return false; // merma y escenarios vienen con valores razonables precargados
+};
 
 Guia.abrir = function () { Guia.paso = 0; App.modo = 'guia'; App.render(); };
 Guia.salir = function () { App.modo = 'proyecto'; App.tab = 'datos'; App.render(); };
@@ -2903,8 +2925,12 @@ Guia.render = function (project) {
   const b = Templates.benchmarks(project.sector);
   const total = Guia.PASOS.length;
   const card = UI.el('div',{class:'card guia'});
-  card.appendChild(UI.el('div',{class:'guia__prog'}, 'Paso ' + (Guia.paso+1) + ' de ' + total));
   const paso = Guia.PASOS[Guia.paso];
+  const esOpcional = Guia.OPCIONALES.includes(paso);
+  card.appendChild(UI.el('div',{class:'guia__prog'},[
+    'Paso ' + (Guia.paso+1) + ' de ' + total,
+    esOpcional ? UI.el('span',{class:'guia__opcional'},'Opcional') : null
+  ]));
   // Cada paso: título + explicación + campos. (contenido por paso)
   if (paso === 'sector') {
     card.appendChild(UI.el('h2',null,'¿Qué tipo de negocio es?'));
@@ -2984,10 +3010,16 @@ Guia.render = function (project) {
     card.appendChild(contRiesgos);
     UI.renderRiesgos(project, contRiesgos);
   }
-  // navegación
+  // navegación (con salida explícita "No lo sé" en pasos opcionales sin rellenar)
+  const puedeSaltar = esOpcional && Guia.pasoVacio(paso, project);
+  if (puedeSaltar) {
+    card.appendChild(UI.el('div',{class:'microayuda guia__salta'},
+      'Sin este dato el análisis sigue funcionando: contará como "sin datos" y no penaliza. Puedes volver cuando lo tengas.'));
+  }
   const nav = UI.el('div',{class:'guia__nav'});
   if (Guia.paso > 0) nav.appendChild(UI.el('button',{class:'btn',onclick:Guia.atras},'← Atrás'));
   nav.appendChild(UI.el('button',{class:'btn',onclick:Guia.salir},'Salir'));
+  if (puedeSaltar && Guia.paso < total-1) nav.appendChild(UI.el('button',{class:'btn',onclick:Guia.siguiente},'No lo sé, saltar →'));
   nav.appendChild(UI.el('button',{class:'btn btn--accent',onclick:Guia.siguiente}, Guia.paso < total-1 ? 'Siguiente →' : 'Ver resultado ✓'));
   card.appendChild(nav);
   cont.appendChild(card);
