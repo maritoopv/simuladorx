@@ -204,6 +204,10 @@ body{font-family:var(--font);color:var(--text);font-size:15px;line-height:1.45;b
 .zona-na { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); }
 
 .chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips-mes{display:flex;gap:4px;flex-wrap:wrap}
+.chip-mes{width:30px;height:30px;padding:0;border-radius:8px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--muted);font-size:12px;cursor:pointer}
+.chip-mes.activa{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
 .obs-fila__top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .obs-fila__top input[type=date]{flex:1}
 .obs-add{margin-top:8px}
@@ -403,6 +407,14 @@ Engine.proyectoVacio = function () {
     mermaPct: 0,
     costesFijos: [],
     inversionInicial: 0,
+    inversionDesglose: [
+      { concepto: 'Obras / reforma', importe: 0 },
+      { concepto: 'Maquinaria / equipos', importe: 0 },
+      { concepto: 'Fianza', importe: 0 },
+      { concepto: 'Stock inicial', importe: 0 },
+      { concepto: 'Licencias / permisos', importe: 0 },
+      { concepto: 'Mobiliario', importe: 0 }
+    ],
     impuestoPct: 0,
     ivaPct: 21,
     propietario: { sueldoMes: 0, horasSemana: 0 },
@@ -454,19 +466,68 @@ Engine.costeEmpleado = function (emp, ssPct) {
   return { brutoAnual, ss: ssImporte, costeAnual, costeMes: costeAnual/12 };
 };
 
-Engine.costeRefuerzo = function (ref, ssPct) {
+// Meses activos de un refuerzo legacy (sin `meses`): deriva de cuando/semanasAnio.
+// Redondeo prudente a meses (4,33 semanas/mes); desviación máx. ±2,2 semanas.
+Engine.mesesDesdeLegacy = function (ref, calendario) {
+  const r = ref || {};
+  const cal = (Array.isArray(calendario) && calendario.length === 12) ? calendario : Array(12).fill('N');
+  const semanas = Number(r.semanasAnio) || 0;
+  const out = Array(12).fill(false);
+  if (semanas <= 0) return out;
+  const nMeses = Math.min(12, Math.max(1, Math.round(semanas / 4.33)));
+  if (r.cuando === 'temporada_fuerte' && cal.some(t => t === 'B')) {
+    cal.forEach((t, i) => { if (t === 'B') out[i] = true; });
+    return out;
+  }
+  if (r.cuando === 'finde' || nMeses === 12) return Array(12).fill(true);
+  const ordenVerano = [6, 7, 5, 8, 4, 9, 3, 10, 2, 11, 1, 0]; // jul, ago, jun, sep, may…
+  if (r.cuando === 'verano' || r.cuando === 'temporada_fuerte') {
+    for (let k = 0; k < nMeses; k++) out[ordenVerano[k]] = true;
+    return out;
+  }
+  // eventos / personalizado / desconocido: primeros nMeses prefiriendo B, luego N, luego M
+  const orden = [];
+  ['B', 'N', 'M'].forEach(tipo => cal.forEach((t, i) => { if (t === tipo) orden.push(i); }));
+  for (let k = 0; k < nMeses && k < orden.length; k++) out[orden[k]] = true;
+  return out;
+};
+
+Engine.mesesRefuerzo = function (ref, calendario) {
+  const m = ref && ref.meses;
+  if (Array.isArray(m) && m.length === 12) return m.map(x => !!x);
+  return Engine.mesesDesdeLegacy(ref, calendario);
+};
+
+Engine.costeRefuerzo = function (ref, ssPct, calendario) {
   const r = ref || {};
   const horas = Number(r.horasSemana) || 0;
   const eur = Number(r.eurHora) || 0;
-  const semanas = Number(r.semanasAnio) || 0;
   const ss = Number(ssPct) || 0;
-  const costeAnual = horas * eur * semanas * (1 + ss / 100);
-  return { costeAnual, costeMes: costeAnual / 12 };
+  const costeMesActivo = horas * eur * 4.33 * (1 + ss / 100);
+  const mesesActivos = Engine.mesesRefuerzo(r, calendario).filter(Boolean).length;
+  const costeAnual = costeMesActivo * mesesActivos;
+  return { costeMesActivo, mesesActivos, costeAnual, costeMes: costeAnual / 12 };
+};
+
+Engine.costeRefuerzosEnMes = function (project, mesIdx) {
+  const ssPct = Number(project && project.ssPct) || 0;
+  const cal = project && project.calendario;
+  return ((project && project.refuerzos) || []).reduce((s, r) =>
+    s + (Engine.mesesRefuerzo(r, cal)[mesIdx] ? Engine.costeRefuerzo(r, ssPct, cal).costeMesActivo : 0), 0);
 };
 
 Engine.costeRefuerzosMensual = function (project) {
-  const ssPct = Number(project && project.ssPct) || 0;
-  return ((project && project.refuerzos) || []).reduce((s, r) => s + Engine.costeRefuerzo(r, ssPct).costeMes, 0);
+  let suma = 0;
+  for (let i = 0; i < 12; i++) suma += Engine.costeRefuerzosEnMes(project, i);
+  return suma / 12;
+};
+
+Engine.costeRefuerzosMediaTipo = function (project, tipo) {
+  const cal = (project && project.calendario && project.calendario.length === 12)
+    ? project.calendario : Array(12).fill('N');
+  let suma = 0, n = 0;
+  cal.forEach((t, i) => { if (t === tipo) { suma += Engine.costeRefuerzosEnMes(project, i); n++; } });
+  return n > 0 ? suma / n : 0;
 };
 
 // Nº de personas de un empleado en un tipo de mes ('B'|'N'|'M').
@@ -478,13 +539,17 @@ Engine.numeroEnTemporada = function (emp, tipo) {
   return Number(emp && emp.numero) || 0;
 };
 
-// Coste de personal de un mes según su tipo de temporada. Los refuerzos siguen
-// repartidos en 12 (decisión de spec: su coste no cambia).
-Engine.costePersonalMensualTipo = function (project, tipo) {
+// Coste de solo-empleados de un mes según su tipo de temporada.
+Engine.costeEmpleadosMensualTipo = function (project, tipo) {
   const ssPct = Number(project.ssPct) || 0;
-  const empleados = (project.empleados || []).reduce((s, e) =>
+  return (project.empleados || []).reduce((s, e) =>
     s + Engine.costeEmpleado(Object.assign({}, e, { numero: Engine.numeroEnTemporada(e, tipo) }), ssPct).costeMes, 0);
-  return empleados + Engine.costeRefuerzosMensual(project);
+};
+
+// Coste de personal de un "mes tipo": empleados del tipo + media de refuerzos
+// de los meses de ese tipo (los refuerzos caen en meses concretos desde ronda 7).
+Engine.costePersonalMensualTipo = function (project, tipo) {
+  return Engine.costeEmpleadosMensualTipo(project, tipo) + Engine.costeRefuerzosMediaTipo(project, tipo);
 };
 
 // Media anual del personal según el calendario (la plantilla puede variar por
@@ -495,9 +560,10 @@ Engine.costePersonalMensual = function (project) {
     ? project.calendario : Array(12).fill('N');
   const porTipo = {};
   let suma = 0;
-  for (const t of cal) {
-    if (porTipo[t] == null) porTipo[t] = Engine.costePersonalMensualTipo(project, t);
-    suma += porTipo[t];
+  for (let i = 0; i < 12; i++) {
+    const t = cal[i];
+    if (porTipo[t] == null) porTipo[t] = Engine.costeEmpleadosMensualTipo(project, t);
+    suma += porTipo[t] + Engine.costeRefuerzosEnMes(project, i);
   }
   return suma / 12;
 };
@@ -564,9 +630,9 @@ Engine.opcionesCobertura = function (horasSemana, opts) {
   // Completos + refuerzo por horas (sin 14 pagas; pensado para picos)
   if (nCompletos > 0) {
     const emps = [empleado(nCompletos, J)];
-    const ref = { concepto:'Refuerzo (horas sueltas)', horasSemana: resto, eurHora, cuando:'finde', semanasAnio: 52 };
+    const ref = { concepto:'Refuerzo (horas sueltas)', horasSemana: resto, eurHora, cuando:'finde', meses: Array(12).fill(true) };
     out.push({ clave:'refuerzo', titulo: nCompletos + ' × 40 h + refuerzo de ' + resto + ' h/sem',
-      descripcion:'Refuerzo por horas todo el año (' + eurHora + ' €/h); ajusta luego las semanas si es solo por picos.',
+      descripcion:'Refuerzo por horas todo el año (' + eurHora + ' €/h); ajusta luego los meses si es solo por picos.',
       empleados: emps, refuerzos: [ref],
       costeMes: costeEmpleados(emps) + Engine.costeRefuerzo(ref, ssPct).costeMes });
   }
@@ -597,12 +663,18 @@ Engine.escalaCoste = function (tipo, m) {
   return 1;
 };
 
-Engine.costesFijosMensuales = function (project, m, tipo) {
+Engine.costesFijosMensuales = function (project, m, tipo, mesIdx) {
   const lista = (project.costesFijos || []).reduce(
     (s, c) => s + (Number(c.importe) || 0) * Engine.escalaCoste(c.tipo, m == null ? 1 : m), 0);
   const sueldo = project.propietario ? (Number(project.propietario.sueldoMes)||0) : 0;
-  const personal = tipo ? Engine.costePersonalMensualTipo(project, tipo)
-                        : Engine.costePersonalMensual(project);
+  let personal;
+  if (tipo && mesIdx != null) {
+    personal = Engine.costeEmpleadosMensualTipo(project, tipo) + Engine.costeRefuerzosEnMes(project, mesIdx);
+  } else if (tipo) {
+    personal = Engine.costePersonalMensualTipo(project, tipo);
+  } else {
+    personal = Engine.costePersonalMensual(project);
+  }
   return lista + sueldo + personal;
 };
 
@@ -668,8 +740,8 @@ Engine.cashflow = function (project, m) {
   const sc = Engine.computeScenario(project, m);
   const impuestosMes = sc.impuestos / 12;
   const cal = (project.calendario && project.calendario.length === 12) ? project.calendario : Array(12).fill('N');
-  const cajaMes = cal.map(t => (valorMes[t]||0) * m * margenContribucionPct/100
-    - Engine.costesFijosMensuales(project, m, t) - impuestosMes);
+  const cajaMes = cal.map((t, i) => (valorMes[t]||0) * m * margenContribucionPct/100
+    - Engine.costesFijosMensuales(project, m, t, i) - impuestosMes);
   const acumulada = [];
   let run = -(Number(project.inversionInicial)||0);
   let minPoint = run, minMonth = -1;
@@ -833,11 +905,6 @@ Engine.personalSobreVentas = function (project) {
     return fac > 0 ? Engine.costePersonalMensualTipo(project, tipo) / fac * 100 : 0;
   };
   return { verano: ratio(f.mesBueno, 'B'), invierno: ratio(f.mesMalo, 'M') };
-};
-
-Engine.semanasTemporadaFuerte = function (project) {
-  const nBuenos = Number(project && project.facturacion && project.facturacion.nBuenos) || 0;
-  return Math.round(nBuenos * 52 / 12);
 };
 
 Engine.validacionRiesgos = function (project, catalogo) {
@@ -1764,12 +1831,24 @@ if (typeof window !== 'undefined') window.Engine = Engine;
     project.facturacion.nMalos    = cal.filter(x => x === 'M').length;
   }
 
+  // Refuerzos: convierte el modelo legacy (cuando/semanasAnio) a meses activos
+  // (ronda 7). La derivación vive en Engine.mesesRefuerzo para poder testearla.
+  // Debe ejecutarse DESPUÉS de normalizarCalendario (usa los meses 'B').
+  function normalizarRefuerzos(project) {
+    project.refuerzos = (Array.isArray(project.refuerzos) ? project.refuerzos : []).map(r => {
+      const limpio = Object.assign({}, r, { meses: Engine.mesesRefuerzo(r, project.calendario) });
+      delete limpio.semanasAnio;
+      return limpio;
+    });
+  }
+
   Storage.migrar = function (estado) {
     if (!estado || typeof estado !== 'object') return { version:1, proyectos:[], activoId:null, plantillas:[], ordenLista:'manual' };
     const proyectos = (estado.proyectos || []).map(p => {
       const completo = mergeProfundo(Engine.proyectoVacio(), p);
       completo.id = p.id;
       normalizarCalendario(completo);
+      normalizarRefuerzos(completo);
       return completo;
     });
     return { version:1, proyectos, activoId: (proyectos.some(p => p.id === estado.activoId) ? estado.activoId : (proyectos[0] && proyectos[0].id)) || null, plantillas: Array.isArray(estado.plantillas) ? estado.plantillas : [], ordenLista: estado.ordenLista === 'beneficio' ? 'beneficio' : 'manual' };
@@ -1910,14 +1989,21 @@ UI.bloqueMargen = function (project) {
 };
 
 UI.gastoAbierto = null;   // índice del gasto desplegado (persiste entre repintados)
+UI.refuerzoAbierto = null;   // índice del refuerzo desplegado (persiste entre repintados)
+UI.leyendaGastosAbierta = false; // leyenda F/V/S de gastos desplegada (persiste entre repintados)
 UI.zonaMasAbierto = false;   // "Más factores" de Zona abierto (persiste entre repintados)
 UI.obsDetalleAbierto = null; // id de la visita con "Más detalle" abierto (ídem)
-UI.invDetalleAbierto = false; // desglose de inversión abierto (Datos y paso del guiado)
 
 UI.bloqueCostesFijos = function (project) {
   const card = UI.el('div',{class:'card'},[UI.el('h2',null,'Gastos fijos (€/mes)')]);
   card.appendChild(UI.el('div',{class:'microayuda'},
     'Toca un gasto para poner su importe. Los que dejes a 0 no cuentan.'));
+  card.appendChild(UI.el('details',{class:'mas-detalle', ...(UI.leyendaGastosAbierta ? {open:''} : {}),
+    ontoggle:(e)=>{ if (e.target === e.currentTarget) UI.leyendaGastosAbierta = e.target.open; }},[
+    UI.el('summary',null,'¿Qué significa F · V · S?'),
+    UI.el('div',{class:'microayuda'},
+      'F — Fijo: no cambia si vendes menos (alquiler, seguros). V — Variable: sube y baja con las ventas. S — Semi: mitad y mitad (luz, agua…). Afecta a los escenarios, no al caso base.')
+  ]));
   const TIPOS = [['fijo','F'],['variable','V'],['semi','S']];
   const ayudas = Templates.ayudaGastos();
   project.costesFijos.forEach((c,idx)=>{
@@ -1942,9 +2028,7 @@ UI.bloqueCostesFijos = function (project) {
         UI.el('div',{class:'gasto__acciones'},[
           chips,
           UI.el('button',{class:'btn',onclick:()=>{ project.costesFijos.splice(idx,1); UI.gastoAbierto=null; App.guardarDebounced(); App.refrescarTab(); }},'Quitar')
-        ]),
-        UI.el('div',{class:'microayuda'},
-          'Fijo: no cambia si vendes menos. Variable: sube y baja con las ventas. Semi: mitad y mitad (luz, agua…). Afecta a los escenarios, no al caso base.')
+        ])
       ]);
       if (ayudas[c.concepto]) ficha.appendChild(UI.el('div',{class:'microayuda'}, '💡 ' + ayudas[c.concepto]));
       fila.appendChild(ficha);
@@ -1975,14 +2059,36 @@ UI.estimadorFacturacion = function (project) {
   return wrap;
 };
 
-UI.estimadorInversion = function (project) {
-  const items = ['Obras / reforma','Maquinaria / equipos','Fianza','Stock inicial','Licencias / permisos','Mobiliario'];
-  const wrap = UI.el('div',{class:'estimador'}); const vals = {};
-  const out = UI.el('div',{class:'kpi'});
-  const total = function(){ const t=Object.values(vals).reduce(function(s,n){return s+(n||0);},0); out.textContent = 'Total: '+Math.round(t).toLocaleString('es-ES')+' €'; return t; };
-  items.forEach(function(it){ wrap.appendChild(UI.el('div',{class:'field'},[UI.el('label',null,it), UI.el('input',{type:'text',inputmode:'decimal',placeholder:'€',oninput:function(e){vals[it]=Engine.parseNum(e.target.value);total();}})])); });
-  wrap.appendChild(out);
-  wrap.appendChild(UI.el('button',{class:'btn',onclick:function(){ project.inversionInicial=Math.round(total()); App.guardarDebounced(); App.refrescarTab(); }},'Usar como inversión inicial'));
+UI.bloqueInversion = function (project) {
+  const wrap = UI.el('div');
+  wrap.appendChild(UI.campo(project,'Inversión inicial (€)',project,'inversionInicial','number','inversionInicial','40000'));
+  const des = (project.inversionDesglose = project.inversionDesglose || []);
+  wrap.appendChild(UI.el('div',{class:'microayuda'},
+    'O desglósala: rellena lo que sepas y la suma se pone sola como inversión inicial. Las partidas a 0 no cuentan.'));
+  const sync = () => {
+    const t = des.reduce((s,p)=> s + (Number(p.importe)||0), 0);
+    if (t > 0) project.inversionInicial = Math.round(t);
+  };
+  des.forEach((p, idx) => {
+    wrap.appendChild(UI.el('div',{class:'grid-2'},[
+      UI.campo(project,'Concepto',p,'concepto','text'),
+      UI.el('div',{class:'field'},[UI.el('label',null,'€'),
+        UI.el('div',{style:'display:flex;gap:6px'},[
+          UI.el('input',{type:'text',inputmode:'decimal',placeholder:'0',
+            value: p.importe ? String(p.importe).replace('.', ',') : '',
+            oninput:(e)=>{ p.importe = Engine.parseNum(e.target.value); sync(); App.guardarDebounced(); App.refrescarTab(); }}),
+          UI.el('button',{class:'btn',title:'Quitar partida',onclick:()=>{
+            des.splice(idx,1); sync(); App.guardarDebounced(); App.refrescarTab();
+          }},'×')
+        ])])
+    ]));
+  });
+  wrap.appendChild(UI.el('button',{class:'btn',onclick:()=>{
+    des.push({concepto:'',importe:0});
+    App.guardarDebounced(); App.refrescarTab();
+  }},'+ Añadir gasto'));
+  const total = des.reduce((s,p)=> s + (Number(p.importe)||0), 0);
+  if (total > 0) wrap.appendChild(UI.el('div',{class:'total-gastos'},'Total desglose: '+UI.eur(total)));
   return wrap;
 };
 
@@ -2013,11 +2119,13 @@ UI.cuadrantePersonal = function (project) {
           App.guardarDebounced(); App.refrescarTab();
         }}))))));
   });
+  const calCuad = (project.calendario && project.calendario.length === 12) ? project.calendario : Array(12).fill('N');
   (project.refuerzos||[]).forEach(r => {
-    const en = (r.cuando === 'verano' || r.cuando === 'temporada_fuerte') ? ['B'] : ['B','N','M'];
+    const mesesR = Engine.mesesRefuerzo(r, project.calendario);
+    const tiposActivos = new Set(calCuad.filter((t, i) => mesesR[i]));
     tbody.appendChild(UI.el('tr',{class:'cuad__ref'},
       [UI.el('td',null,(r.concepto||'Refuerzo')+' · '+(Number(r.horasSemana)||0)+'h (refuerzo)')].concat(
-        TIPOS.map(([t]) => UI.el('td',null, en.includes(t) ? '✓' : '—')))));
+        TIPOS.map(([t]) => UI.el('td',null, tiposActivos.has(t) ? '✓' : '—')))));
   });
   const b = Templates.benchmarks(project.sector);
   const tope = (b.personalSobreVentasPct && b.personalSobreVentasPct[1] != null) ? b.personalSobreVentasPct[1] : 35;
@@ -2033,8 +2141,20 @@ UI.cuadrantePersonal = function (project) {
   tabla.appendChild(tbody);
   card.appendChild(UI.el('div',{class:'cuad-scroll'},[tabla]));
   card.appendChild(UI.el('div',{class:'microayuda'},
-    'Tope orientativo del sector: '+tope+' % de las ventas. Los refuerzos se muestran donde aplican; su coste va repartido en el año.'));
+    'Tope orientativo del sector: '+tope+' % de las ventas. Los refuerzos se muestran donde aplican; su coste cae en sus meses.'));
   return card;
+};
+
+// Meses que rellena cada preset de "Cuándo"; null = el preset no toca los chips.
+UI.mesesPreset = function (clave, project) {
+  if (clave === 'finde') return Array(12).fill(true);
+  const verano = () => { const m = Array(12).fill(false); m[5] = m[6] = m[7] = true; return m; };
+  if (clave === 'verano') return verano();
+  if (clave === 'temporada_fuerte') {
+    const cal = project.calendario || [];
+    return cal.some(t => t === 'B') ? cal.map(t => t === 'B') : verano();
+  }
+  return null; // eventos / personalizado: los marca el usuario
 };
 
 UI.bloquePersonal = function (project) {
@@ -2148,53 +2268,76 @@ UI.bloquePersonal = function (project) {
   }
   card.appendChild(calc);
 
-  // Refuerzos (picos)
+  // Refuerzos (picos): cada uno con sus meses activos; su coste solo cae en esos meses
   project.refuerzos = project.refuerzos || [];
   const refCard = UI.el('div',{class:'card'},[
     UI.el('h2',null,'Refuerzos (picos)'),
-    UI.el('div',{class:'microayuda'},'Personal extra por horas para finde, verano, temporada fuerte o eventos. Se suma al coste de personal.')
+    UI.el('div',{class:'microayuda'},'Personal extra por horas para picos concretos. Marca sus meses: su coste solo cuenta en esos meses, no todo el año.')
   ]);
   const CUANDO = Templates.REFUERZO_CUANDO;
   project.refuerzos.forEach((r, idx) => {
-    const fila = UI.el('div',{class:'grid-2'},[
-      UI.campo(project,'Concepto',r,'concepto','text',null,'Camarero de finde'),
-      UI.el('div',{class:'field'},[UI.el('label',null,'Horas/semana'),
-        UI.el('input',{type:'text',inputmode:'decimal',value:r.horasSemana!=null?r.horasSemana:'',oninput:(e)=>{
-          r.horasSemana=Engine.parseNum(e.target.value);App.guardarDebounced();App.refrescarTab();
-        }})]),
-      UI.el('div',{class:'field'},[UI.el('label',null,'€/hora (bruto)'),
-        UI.el('input',{type:'text',inputmode:'decimal',value:r.eurHora!=null?r.eurHora:'',oninput:(e)=>{
-          r.eurHora=Engine.parseNum(e.target.value);App.guardarDebounced();App.refrescarTab();
-        }})]),
-      UI.el('div',{class:'field'},[UI.el('label',null,'Cuándo'),
-        UI.el('select',{onchange:(e)=>{
-          r.cuando=e.target.value;
-          const opt=CUANDO.find(c=>c.clave===e.target.value);
-          if(opt && opt.clave==='temporada_fuerte') r.semanasAnio=Engine.semanasTemporadaFuerte(project);
-          else if(opt && opt.semanas!=null) r.semanasAnio=opt.semanas;
-          App.guardarDebounced();App.refrescarTab();
-        }}, CUANDO.map(c=>UI.el('option',{value:c.clave,...(c.clave===r.cuando?{selected:'selected'}:{})}, c.etiqueta)))]),
-      UI.el('div',{class:'field'},[UI.el('label',null,'Semanas/año'),
-        UI.el('div',{style:'display:flex;gap:6px'},[
-          UI.el('input',{type:'text',inputmode:'decimal',value:r.semanasAnio!=null?r.semanasAnio:'',oninput:(e)=>{
-            r.semanasAnio=Engine.parseNum(e.target.value);App.guardarDebounced();App.refrescarTab();
-          }}),
+    const abierto = UI.refuerzoAbierto === idx;
+    const cr = Engine.costeRefuerzo(r, Number(project.ssPct)||0, project.calendario);
+    const meses = Engine.mesesRefuerzo(r, project.calendario);
+    const resumen = (cr.costeMesActivo > 0 && cr.mesesActivos > 0)
+      ? UI.eur(cr.costeMesActivo)+'/mes × '+cr.mesesActivos+(cr.mesesActivos===1?' mes = ':' meses = ')+UI.eur(cr.costeAnual)
+      : '—';
+    const fila = UI.el('div',{class:'gasto'+(abierto?' gasto--abierto':'')});
+    fila.appendChild(UI.el('button',{class:'gasto__cab',onclick:()=>{ UI.refuerzoAbierto = abierto ? null : idx; App.refrescarTab(); }},[
+      UI.el('span',{class:'gasto__nombre'+(r.concepto?'':' vacio')}, r.concepto || 'Refuerzo'),
+      UI.el('span',{class:'gasto__resumen'+(resumen==='—'?' vacio':'')}, resumen),
+      UI.el('span',{class:'gasto__chev'}, abierto ? '▲' : '▼')
+    ]));
+    if (abierto) {
+      const selCuando = UI.el('select',{onchange:(e)=>{
+        r.cuando = e.target.value;
+        const m = UI.mesesPreset(r.cuando, project);
+        if (m) r.meses = m;
+        App.guardarDebounced(); App.refrescarTab();
+      }}, CUANDO.map(c=>UI.el('option',{value:c.clave,...(c.clave===r.cuando?{selected:'selected'}:{})}, c.etiqueta)));
+      const chips = UI.el('div',{class:'chips-mes'}, Engine.MESES.map((nom, i) =>
+        UI.el('button',{class:'chip-mes'+(meses[i]?' activa':''), title: nom, type:'button',
+          onclick:()=>{
+            const m = Engine.mesesRefuerzo(r, project.calendario).slice();
+            m[i] = !m[i];
+            r.meses = m;
+            r.cuando = 'personalizado';
+            App.guardarDebounced(); App.refrescarTab();
+          }}, nom[0])));
+      const ficha = UI.el('div',{class:'gasto__ficha'},[
+        UI.el('div',{class:'grid-2'},[
+          UI.campo(project,'Concepto',r,'concepto','text',null,'Camarero de finde',true),
+          UI.el('div',{class:'field'},[UI.el('label',null,'Horas/semana'),
+            UI.el('input',{type:'text',inputmode:'decimal',value:r.horasSemana!=null?String(r.horasSemana).replace('.',','):'',oninput:(e)=>{
+              r.horasSemana=Engine.parseNum(e.target.value);App.guardarDebounced();App.refrescarTab();
+            }})]),
+          UI.el('div',{class:'field'},[UI.el('label',null,'€/hora (bruto)'),
+            UI.el('input',{type:'text',inputmode:'decimal',value:r.eurHora!=null?String(r.eurHora).replace('.',','):'',oninput:(e)=>{
+              r.eurHora=Engine.parseNum(e.target.value);App.guardarDebounced();App.refrescarTab();
+            }})]),
+          UI.el('div',{class:'field'},[UI.el('label',null,'Cuándo'),selCuando])
+        ]),
+        UI.el('div',{class:'field'},[UI.el('label',null,'Meses activos'),chips]),
+        UI.el('div',{class:'gasto__acciones'},[
+          UI.el('div',{class:'microayuda'},
+            'Coste: '+UI.eur(cr.costeMesActivo)+'/mes en sus meses · total temporada '+UI.eur(cr.costeAnual)+' (SS incluida).'),
           UI.el('button',{class:'btn',title:'Quitar refuerzo',onclick:()=>{
-            project.refuerzos.splice(idx,1);App.guardarDebounced();App.refrescarTab();
-          }},'×')
-        ])])
-    ]);
+            project.refuerzos.splice(idx,1);UI.refuerzoAbierto=null;App.guardarDebounced();App.refrescarTab();
+          }},'Quitar')
+        ])
+      ]);
+      fila.appendChild(ficha);
+    }
     refCard.appendChild(fila);
-    const cr = Engine.costeRefuerzo(r, Number(project.ssPct)||0);
-    refCard.appendChild(UI.el('div',{class:'microayuda'},
-      'Coste: '+UI.eur(cr.costeMes)+'/mes · '+UI.eur(cr.costeAnual)+'/año (SS incluida).'));
   });
   refCard.appendChild(UI.el('button',{class:'btn',onclick:()=>{
-    project.refuerzos.push({concepto:'',horasSemana:0,eurHora:Templates.eurHoraRefSector(project.sector),cuando:'finde',semanasAnio:52});
+    project.refuerzos.push({concepto:'',horasSemana:0,eurHora:Templates.eurHoraRefSector(project.sector),cuando:'finde',meses:Array(12).fill(true)});
+    UI.refuerzoAbierto = project.refuerzos.length-1;
     App.guardarDebounced();App.refrescarTab();
   }},'+ Añadir refuerzo'));
-  const refMes = Engine.costeRefuerzosMensual(project);
-  refCard.appendChild(UI.el('div',{class:'kpi'+(refMes>0?'':' muted')},'Refuerzos: '+UI.eur(refMes)+'/mes'));
+  const refAnual = Engine.costeRefuerzosMensual(project) * 12;
+  refCard.appendChild(UI.el('div',{class:'kpi'+(refAnual>0?'':' muted')},
+    'Refuerzos: '+UI.eur(refAnual)+'/año · media '+UI.eur(refAnual/12)+'/mes'));
   card.appendChild(refCard);
 
   // Cuadrante por temporada (solo si hay empleados)
@@ -2294,16 +2437,10 @@ UI.renderDatos = function (project, cont) {
   // Personal (empleados)
   cont.appendChild(UI.bloquePersonal(project));
 
-  // Inversión, impuestos, IVA, escenarios — el desglose va PEGADO al campo de inversión
-  const detallesInversion = UI.el('details',{class:'mas-detalle', ...(UI.invDetalleAbierto ? {open:''} : {}),
-    ontoggle:(e)=>{ if (e.target === e.currentTarget) UI.invDetalleAbierto = e.target.open; }},[
-    UI.el('summary',null,'O súmala por partes (obras, maquinaria, fianza…)'),
-    UI.estimadorInversion(project)
-  ]);
+  // Inversión (con desglose persistente), impuestos, IVA, escenarios
   cont.appendChild(UI.el('div',{class:'card'},[
     UI.el('h2',null,'Inversión e impuestos'),
-    UI.campo(project,'Inversión inicial (€)',project,'inversionInicial','number','inversionInicial','40000'),
-    detallesInversion,
+    UI.bloqueInversion(project),
     UI.el('div',{class:'grid-2'},[
       UI.campo(project,'Impuesto sobre beneficio (%)',project,'impuestoPct','number','impuestoPct'),
       UI.campo(project,'IVA (%)',project,'ivaPct','number','ivaPct'),
@@ -2999,13 +3136,7 @@ Guia.render = function (project) {
     card.appendChild(UI.el('div',{class:'grid-2'},[ UI.campo(project,'Sueldo (€/mes)',project.propietario,'sueldoMes','number',null,'1800'), UI.campo(project,'Horas/semana',project.propietario,'horasSemana','number',null,'50') ]));
   } else if (paso === 'inversion') {
     card.appendChild(UI.el('h2',null,'¿Cuánto te cuesta arrancar?'));
-    card.appendChild(UI.el('div',{class:'microayuda'}, ayuda.inversionInicial));
-    card.appendChild(UI.campo(project,'Inversión inicial (€)',project,'inversionInicial','number',null,'40000'));
-    card.appendChild(UI.el('details',{class:'mas-detalle', ...(UI.invDetalleAbierto ? {open:''} : {}),
-      ontoggle:(e)=>{ if (e.target === e.currentTarget) UI.invDetalleAbierto = e.target.open; }},[
-      UI.el('summary',null,'O súmala por partes (obras, maquinaria, fianza…)'),
-      UI.estimadorInversion(project)
-    ]));
+    card.appendChild(UI.bloqueInversion(project));
   } else if (paso === 'escenarios') {
     card.appendChild(UI.el('h2',null,'¿Y si va mejor o peor de lo previsto?'));
     card.appendChild(UI.el('div',{class:'microayuda'},'Definimos un margen arriba y abajo de tu previsión para ver el mejor y el peor caso. Lo normal: optimista +15 %, pesimista −20 %.'));
@@ -3604,7 +3735,7 @@ App.modo = 'lista';                 // lista | proyecto | guia | comparador
 App.tab  = 'datos';                 // datos | escenarios | riesgos
 
 App.verLista     = function(){ App.modo='lista'; App.render(); };
-App.abrirProyecto = function(id){ if (id) App.state.activoId = id; App.modo='proyecto'; App.tab='datos'; if (window.UI) { UI.escenarioSel='base'; UI.gastoAbierto=null; UI.zonaMasAbierto=false; UI.obsDetalleAbierto=null; UI.invDetalleAbierto=false; } Storage.guardar(App.state); App.render(); };
+App.abrirProyecto = function(id){ if (id) App.state.activoId = id; App.modo='proyecto'; App.tab='datos'; if (window.UI) { UI.escenarioSel='base'; UI.gastoAbierto=null; UI.zonaMasAbierto=false; UI.obsDetalleAbierto=null; UI.refuerzoAbierto=null; } Storage.guardar(App.state); App.render(); };
 App.irATab       = function(tab){ App.tab = tab; App.render(); };
 App.verComparador = function(){ App.modo='comparador'; if (window.UI) UI.comparadorSeleccion = App.state.proyectos.map(p=>p.id); App.render(); };
 App.verProyecto   = function(){ App.modo='proyecto'; App.render(); };
