@@ -320,6 +320,12 @@ body{font-family:var(--font);color:var(--text);font-size:15px;line-height:1.45;b
 .opcion-cob:last-of-type{border-bottom:none}
 .opcion-cob__txt{flex:1;min-width:0}
 .opcion-cob__coste{white-space:nowrap;font-weight:600}
+/* En móvil el texto de la opción se estruja: pasa a dos líneas (texto arriba, coste+botón abajo) */
+@media (max-width:480px){
+  .opcion-cob{flex-wrap:wrap}
+  .opcion-cob__txt{flex:1 1 100%}
+  .opcion-cob .btn{margin-left:auto}
+}
 
 /* ---- Cuadrante de personal por temporada ---- */
 .cuad-scroll{overflow-x:auto}
@@ -366,6 +372,7 @@ body{font-family:var(--font);color:var(--text);font-size:15px;line-height:1.45;b
           <div id="detalle-nombre" class="detalle-nombre"></div>
           <div id="detalle-sub" class="detalle-sub muted"></div>
         </div>
+        <button id="btn-guia" class="btn" title="Repasar el proyecto con el asistente paso a paso">Asistente</button>
         <button id="btn-borrar-detalle" class="btn btn--icono" title="Borrar proyecto">🗑</button>
       </header>
       <nav class="tabs" id="tabs">
@@ -3804,6 +3811,10 @@ App.render = function () {
   vistaLista.hidden = true; vistaDetalle.hidden = false;
   const head = document.querySelector('.detalle-head');
   const tabs = document.getElementById('tabs');
+  // El botón Asistente solo tiene sentido viendo el proyecto (en guía reiniciaría al paso 1).
+  // style.display porque head.hidden no surte efecto (.detalle-head{display:flex} lo pisa).
+  document.getElementById('btn-guia').style.display =
+    (App.modo === 'guia' || App.modo === 'comparador') ? 'none' : '';
 
   if (App.modo === 'guia') { head.hidden = true; tabs.hidden = true; Guia.render(App.proyectoActivo()); return; }
   if (App.modo === 'comparador') { head.hidden = true; tabs.hidden = true; UI.renderComparador(); return; }
@@ -3825,6 +3836,7 @@ document.getElementById('btn-nuevo').addEventListener('click', () => {
 document.getElementById('btn-comparar').addEventListener('click', App.verComparador);
 document.getElementById('btn-volver').addEventListener('click', App.verLista);
 document.getElementById('btn-borrar-detalle').addEventListener('click', () => App.borrarProyecto(App.state.activoId));
+document.getElementById('btn-guia').addEventListener('click', () => Guia.abrir());
 document.getElementById('tabs').addEventListener('click', (e) => {
   const t = e.target.closest('.tab'); if (t && t.dataset.tab) App.irATab(t.dataset.tab);
 });
